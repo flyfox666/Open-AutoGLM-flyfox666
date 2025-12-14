@@ -271,7 +271,252 @@ def create_ui():
     """创建Gradio界面"""
     autoglm = AutoGLMInterface()
 
-    with gr.Blocks(title="AutoGLM - Android设备自动化", theme=gr.themes.Soft()) as demo:
+    with gr.Blocks(title="AutoGLM - Android设备自动化",
+                   head="""
+    <style>
+        /* 修复输出结果区域的双滚动条问题 */
+        #result_output {
+            overflow: hidden !important;
+            resize: none !important;
+        }
+
+        #result_output .gradio-textbox {
+            height: 400px !important;
+            overflow-y: auto !important;
+            resize: none !important;
+        }
+
+        #result_output textarea {
+            height: 100% !important;
+            overflow-y: auto !important;
+            resize: none !important;
+            scrollbar-width: thin; /* Firefox */
+            border: none !important;
+            outline: none !important;
+            box-shadow: none !important;
+        }
+
+        #result_output textarea::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        #result_output textarea::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 4px;
+        }
+
+        #result_output textarea::-webkit-scrollbar-thumb {
+            background: #c1c1c1;
+            border-radius: 4px;
+        }
+
+        #result_output textarea::-webkit-scrollbar-thumb:hover {
+            background: #a8a8a8;
+        }
+
+        /* 修复输出结果框的样式 */
+        .output-result {
+            overflow: hidden !important;
+        }
+
+        .output-result .gradio-textbox {
+            height: 400px !important;
+            overflow-y: auto !important;
+            resize: none !important;
+            border: 1px solid #d1d5db !important;
+        }
+
+        .status-card textarea {
+            font-family: monospace;
+            font-size: 0.9rem;
+        }
+
+        .gradio-container {
+            max-width: 1920px !important;
+            width: 100% !important;
+        }
+
+        /* 确保行占满宽度 */
+        .gradio-container .wrap {
+            width: 100% !important;
+        }
+
+        .gradio-container > .gap-2 {
+            width: 100% !important;
+        }
+    </style>
+    <script>
+        // 全局自动滚动控制
+        let autoScrollEnabled = true;
+        let isStreaming = false;
+        let streamingTimeout = null;
+        let autoScrollButton = null;
+
+        // 查找并设置自动滚动按钮
+        function setupAutoScrollButton() {
+            // 查找所有按钮
+            const allButtons = document.querySelectorAll('button');
+
+            allButtons.forEach(btn => {
+                // 通过value属性或文本来识别自动滚动按钮
+                if (btn.value === 'toggle_autoscroll' ||
+                    (btn.textContent && btn.textContent.includes('自动滚动'))) {
+
+                    autoScrollButton = btn;
+
+                    // 设置初始状态
+                    btn.textContent = autoScrollEnabled ? '自动滚动: 开启' : '自动滚动: 关闭';
+                    btn.style.backgroundColor = autoScrollEnabled ? '' : '#ff6b6b';
+
+                    // 移除旧的事件监听器
+                    btn.replaceWith(btn.cloneNode(true));
+
+                    // 重新获取按钮并添加事件
+                    const newBtn = document.querySelector('button[value="toggle_autoscroll"]') ||
+                                   Array.from(document.querySelectorAll('button')).find(b =>
+                                       b.textContent && b.textContent.includes('自动滚动'));
+
+                    if (newBtn) {
+                        newBtn.addEventListener('click', function(e) {
+                            e.preventDefault();
+                            e.stopPropagation();
+
+                            autoScrollEnabled = !autoScrollEnabled;
+                            this.textContent = autoScrollEnabled ? '自动滚动: 开启' : '自动滚动: 关闭';
+                            this.style.backgroundColor = autoScrollEnabled ? '' : '#ff6b6b';
+
+                            console.log('自动滚动状态切换为:', autoScrollEnabled ? '开启' : '关闭');
+
+                            // 如果关闭了自动滚动，立即停止流式状态
+                            if (!autoScrollEnabled) {
+                                isStreaming = false;
+                                clearTimeout(streamingTimeout);
+                            }
+                        });
+
+                        console.log('自动滚动按钮已设置');
+                    }
+                }
+            });
+        }
+
+        // 简化的滚动实现
+        function setupSmartScroll() {
+            // 查找结果输出框
+            const resultTextarea = document.querySelector('textarea#result_output') ||
+                                  document.querySelector('textarea[data-testid*="result_output"]') ||
+                                  Array.from(document.querySelectorAll('textarea')).find(ta =>
+                                      ta.closest('#result_output') ||
+                                      ta.id === 'result_output' ||
+                                      (ta.getAttribute('data-testid') && ta.getAttribute('data-testid').includes('result_output'))
+                                  );
+
+            if (!resultTextarea) {
+                console.log('未找到结果输出框');
+                return;
+            }
+
+            console.log('找到结果输出框，设置自动滚动');
+
+            let lastValue = resultTextarea.value;
+            let lastLength = resultTextarea.value.length;
+
+            // 监听值变化
+            function checkValueChange() {
+                const currentValue = resultTextarea.value;
+                const currentLength = currentValue.length;
+
+                // 如果内容增加了，说明有新输出
+                if (currentLength > lastLength && currentValue !== lastValue) {
+                    console.log('检测到新内容，长度:', currentLength, '之前长度:', lastLength);
+
+                    // 开始流式输出状态
+                    isStreaming = true;
+                    clearTimeout(streamingTimeout);
+
+                    // 重置流式输出计时器
+                    streamingTimeout = setTimeout(() => {
+                        isStreaming = false;
+                        console.log('流式输出结束');
+                    }, 1500); // 1.5秒没有新内容则认为结束
+
+                    // 如果启用自动滚动，滚动到底部
+                    if (autoScrollEnabled) {
+                        setTimeout(() => {
+                            resultTextarea.scrollTop = resultTextarea.scrollHeight;
+                            console.log('已滚动到底部，scrollHeight:', resultTextarea.scrollHeight);
+                        }, 50);
+                    }
+                }
+
+                lastValue = currentValue;
+                lastLength = currentLength;
+            }
+
+            // 使用多种方式监听变化
+            const observer = new MutationObserver(checkValueChange);
+            observer.observe(resultTextarea, {
+                attributes: true,
+                attributeFilter: ['value'],
+                childList: true,
+                subtree: true,
+                characterData: true
+            });
+
+            // 监听输入事件
+            resultTextarea.addEventListener('input', checkValueChange);
+            resultTextarea.addEventListener('change', checkValueChange);
+            resultTextarea.addEventListener('keyup', checkValueChange);
+
+            // 定时检查（兜底方案）
+            setInterval(checkValueChange, 200);
+
+            console.log('自动滚动监听器已设置');
+        }
+
+        // 初始化函数
+        function initializeAutoScroll() {
+            console.log('初始化自动滚动');
+            setupAutoScrollButton();
+            setupSmartScroll();
+        }
+
+        // 确保DOM加载完成后执行
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initializeAutoScroll);
+        } else {
+            initializeAutoScroll();
+        }
+
+        // 页面加载完成后再次尝试
+        window.addEventListener('load', function() {
+            setTimeout(initializeAutoScroll, 1000);
+        });
+
+        // 监听DOM变化，重新初始化
+        const observer = new MutationObserver(function(mutations) {
+            let shouldReinit = false;
+            mutations.forEach(mutation => {
+                if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
+                    mutation.addedNodes.forEach(node => {
+                        if (node.nodeName === 'BUTTON' || (node.querySelector && node.querySelector('button'))) {
+                            shouldReinit = true;
+                        }
+                    });
+                }
+            });
+
+            if (shouldReinit) {
+                setTimeout(initializeAutoScroll, 500);
+            }
+        });
+
+        observer.observe(document.body, {
+            childList: true,
+            subtree: true
+        });
+    </script>
+                   """) as demo:
 
         # 标题和说明
         gr.Markdown("""
@@ -281,16 +526,59 @@ def create_ui():
         """, elem_classes=["header"])
 
         with gr.Row():
-            # 左侧：配置和状态
-            with gr.Column(scale=1):
-                # 设备状态
+            # 第一列：设备状态
+            with gr.Column(scale=2, min_width=280):
                 gr.Markdown("### 设备状态")
-                with gr.Row():
-                    status_btn = gr.Button("检查状态", size="sm")
-                    status_text = gr.Textbox(label="连接状态", interactive=False, elem_classes=["status-card"])
-                status_detail = gr.Textbox(label="详细信息", interactive=False, elem_classes=["status-card"])
+                status_btn = gr.Button("检查状态", variant="secondary", size="lg")
+                status_text = gr.Textbox(label="连接状态", interactive=False, elem_classes=["status-card"])
+                status_detail = gr.Textbox(label="设备详细信息", interactive=False, elem_classes=["status-card"], lines=6)
 
-                # 模型配置
+                # 支持的应用部分
+                gr.Markdown("### 支持的应用", visible=True)
+                apps_btn = gr.Button("获取应用列表", size="sm")
+                apps_list = gr.Textbox(label="可用应用", interactive=False, lines=8, max_lines=12)
+
+            # 第二列：命令输入和执行结果
+            with gr.Column(scale=6, min_width=600):
+                gr.Markdown("### 命令输入")
+
+                # 命令示例
+                with gr.Accordion("命令示例", open=False):
+                    gr.Markdown("""
+                    - "打开美团搜索附近的火锅店"
+                    - "发送微信消息给张三"
+                    - "打开抖音并搜索美食视频"
+                    - "设置明天早上8点的闹钟"
+                    - "拍照并发送给联系人"
+                    """)
+
+                command_input = gr.Textbox(
+                    label="输入您的命令",
+                    placeholder="例如：打开美团搜索附近的火锅店",
+                    lines=3
+                )
+
+                execute_btn = gr.Button("执行命令", variant="primary", size="lg")
+
+                # 执行结果
+                gr.Markdown("### 执行结果")
+                result_output = gr.Textbox(
+                    label="输出结果",
+                    interactive=False,
+                    lines=30,
+                    max_lines=50,
+                    elem_id="result_output",
+                    elem_classes=["output-result"],
+                    container=True
+                )
+
+                with gr.Row():
+                    clear_btn = gr.Button("清空结果", size="sm")
+                    copy_btn = gr.Button("复制结果", size="sm")
+                    auto_scroll_btn = gr.Button("自动滚动: 开启", size="sm", value="toggle_autoscroll")
+
+            # 第三列：模型配置
+            with gr.Column(scale=2, min_width=320):
                 gr.Markdown("### 模型配置")
 
                 # 使用Radio按钮选择配置类型
@@ -327,12 +615,6 @@ def create_ui():
                         label="API Key (必填)",
                         type="password",
                         placeholder="请输入您的智谱AI API Key"
-                    )
-
-                    gr.Examples(
-                        examples=["sk-xxxxxxxx"],
-                        inputs=[api_key],
-                        label="示例格式"
                     )
 
                     device_id = gr.Textbox(
@@ -379,50 +661,6 @@ def create_ui():
                     inputs=[config_type],
                     outputs=[preset_group, custom_group, config_state]
                 )
-
-                # 应用列表
-                gr.Markdown("### 支持的应用")
-                apps_btn = gr.Button("获取应用列表", size="sm")
-                apps_list = gr.Textbox(label="可用应用", interactive=False, lines=10)
-
-            # 右侧：命令执行和结果
-            with gr.Column(scale=2):
-                gr.Markdown("### 命令输入")
-
-                # 命令示例
-                with gr.Accordion("命令示例", open=False):
-                    gr.Markdown("""
-                    - "打开美团搜索附近的火锅店"
-                    - "发送微信消息给张三"
-                    - "打开抖音并搜索美食视频"
-                    - "设置明天早上8点的闹钟"
-                    - "拍照并发送给联系人"
-                    """)
-
-                command_input = gr.Textbox(
-                    label="输入您的命令",
-                    placeholder="例如：打开美团搜索附近的火锅店",
-                    lines=2
-                )
-
-                execute_btn = gr.Button("执行命令", variant="primary", size="lg")
-
-                gr.Markdown("### 执行结果")
-                # 根据Gradio版本决定是否使用show_copy_button
-                textbox_kwargs = {
-                    "label": "输出结果",
-                    "interactive": False,
-                    "lines": 20,
-                    "max_lines": 50
-                }
-                if SUPPORTS_SHOW_COPY_BUTTON:
-                    textbox_kwargs["show_copy_button"] = True
-
-                result_output = gr.Textbox(**textbox_kwargs)
-
-                with gr.Row():
-                    clear_btn = gr.Button("清空结果", size="sm")
-                    copy_btn = gr.Button("复制结果", size="sm")
 
         # 事件绑定
         status_btn.click(
@@ -475,7 +713,7 @@ def create_ui():
 
 
 if __name__ == "__main__":
-    # 创建CSS样式
+    # 创建CSS样式（基础样式）
     css = """
     .header {
         text-align: center;
@@ -498,6 +736,18 @@ if __name__ == "__main__":
         max-width: 1200px;
         margin: 0 auto;
     }
+
+    /* 优化状态显示 */
+    .status-card textarea {
+        font-family: monospace;
+        font-size: 0.9rem;
+    }
+
+    /* 调整整体布局 */
+    .gradio-container {
+        max-width: 1920px !important;
+        width: 100% !important;
+    }
     """
 
     demo = create_ui()
@@ -506,5 +756,6 @@ if __name__ == "__main__":
         server_port=8865,
         share=False,
         debug=True,
+        theme=gr.themes.Soft(),
         css=css
     )

@@ -8,6 +8,7 @@ import sys
 import subprocess
 import threading
 import time
+import webbrowser
 from pathlib import Path
 
 def check_dependencies():
@@ -63,13 +64,27 @@ def start_web_ui():
         for port in ports:
             try:
                 print(f"Web UI访问地址: http://localhost:{port}")
-                demo.launch(
-                    server_name="0.0.0.0",
-                    server_port=port,
-                    share=False,
-                    show_error=True,
-                    quiet=False
-                )
+
+                # 在新线程中启动Web UI
+                def launch_server():
+                    demo.launch(
+                        server_name="0.0.0.0",
+                        server_port=port,
+                        share=False,
+                        show_error=True,
+                        quiet=False
+                    )
+
+                server_thread = threading.Thread(target=launch_server, daemon=True)
+                server_thread.start()
+
+                # 等待服务器启动
+                time.sleep(2)
+
+                # 自动打开浏览器
+                print(f"正在打开Web界面...")
+                webbrowser.open(f"http://localhost:{port}")
+
                 return port
             except Exception as e:
                 if f"Port {port}" in str(e) or "already in use" in str(e):
@@ -149,12 +164,8 @@ def main():
     # 检查scrcpy
     scrcpy_path = check_scrcpy()
 
-    # 启动Web UI（在新线程中）
-    web_ui_thread = threading.Thread(target=start_web_ui, daemon=True)
-    web_ui_thread.start()
-
-    # 等待一下让Web UI先启动
-    time.sleep(2)
+    # 启动Web UI
+    web_ui_port = start_web_ui()
 
     # 启动scrcpy（如果存在）
     scrcpy_process = None
@@ -166,7 +177,11 @@ def main():
     print("使用说明:")
     print("="*60)
     print("1. Web界面:")
-    print("   - 访问: http://localhost:8865 (或显示的其他端口)")
+    if web_ui_port:
+        print(f"   - 访问: http://localhost:{web_ui_port}")
+        print(f"   - 浏览器已自动打开")
+    else:
+        print("   - Web UI启动失败，请检查错误信息")
     print("   - 用于AutoGLM智能控制")
     print("   - 输入自然语言命令控制设备")
     print("")

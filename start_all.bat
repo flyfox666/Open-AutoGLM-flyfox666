@@ -8,21 +8,22 @@ echo ========================================
 echo.
 
 echo 正在启动AutoGLM Web UI...
-start "AutoGLM Web UI" cmd /c "python start_web_ui.py"
+start "AutoGLM Web UI" /MIN python start_web_ui.py
 
 echo 等待Web UI启动...
-timeout /t 3 /nobreak > nul
+timeout /t 5 /nobreak > nul
 
 echo.
 echo 正在启动scrcpy屏幕镜像...
-if exist "scrcpy-win64-v3.3.3\scrcpy-console.bat" (
-    start "scrcpy屏幕镜像" "scrcpy-win64-v3.3.3\scrcpy-console.bat"
-) else if exist "scrcpy-win64-v3.3.3\scrcpy.exe" (
-    start "scrcpy屏幕镜像" "scrcpy-win64-v3.3.3\scrcpy.exe"
-) else (
-    echo [ERROR] 找不到scrcpy程序
-    echo 请确保scrcpy-win64-v3.3.3文件夹存在
-)
+start "scrcpy屏幕镜像" "scrcpy-win64-v3.3.3\scrcpy.exe"
+
+echo.
+echo 等待Web界面就绪...
+timeout /t 3 /nobreak > nul
+
+echo.
+echo 正在打开Web界面...
+start http://localhost:8865
 
 echo.
 echo ========================================
@@ -30,7 +31,7 @@ echo 启动完成！
 echo ========================================
 echo.
 echo 1. Web界面:
-echo    - 访问: http://localhost:8865
+echo    - 已自动打开: http://localhost:8865
 echo    - 用于AutoGLM智能控制
 echo    - 输入自然语言命令控制设备
 echo.
