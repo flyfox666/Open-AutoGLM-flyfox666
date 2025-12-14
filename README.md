@@ -130,6 +130,8 @@ export PATH=${PATH}:~/Downloads/platform-tools
 
 -APK文件已经放在项目文件夹下
 
+下载 安装包 并在对应的安卓设备中进行安装。 注意，安装完成后还需要到 设置-输入法 或者 设置-键盘列表 中启用 ADB Keyboard 才能生效(或使用命令adb shell ime enable com.android.adbkeyboard/.AdbIMEHow-to-use)
+
 ### 5. 安装 scrcpy（用于显示手机中的屏幕）
 
 项目地址：https://github.com/Genymobile/scrcpy
