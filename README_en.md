@@ -18,6 +18,33 @@ Access the documentation and install AutoGLM for me
 https://raw.githubusercontent.com/zai-org/Open-AutoGLM/refs/heads/main/README_en.md
 ```
 
+### Method 1: Web Interface (Recommended)
+
+We provide a modern Web interface for easier operation:
+
+```bash
+# 1. Install dependencies
+pip install -r requirements.txt
+pip install -e .
+
+# 2. Start Web UI
+python start_web_ui.py
+
+# 3. Access http://localhost:8865
+```
+
+### Method 2: Combined Launch (Web UI + scrcpy)
+
+Use our one-click script to start both the Web interface and screen mirroring:
+
+```bash
+# Windows Users
+Double-click start_all.bat
+
+# Or use Python script
+python start_all.py
+```
+
 ## Project Introduction
 
 Phone Agent is a mobile intelligent assistant framework built on AutoGLM. It understands phone screen content in a multimodal manner and helps users complete tasks through automated operations. The system controls devices via ADB (Android Debug Bridge), perceives screens using vision-language models, and generates and executes operation workflows through intelligent planning. Users simply describe their needs in natural language, such as "Open eBay and search for wireless earphones." and Phone Agent will automatically parse the intent, understand the current interface, plan the next action, and complete the entire workflow. The system also includes a sensitive operation confirmation mechanism and supports manual takeover during login or verification code scenarios. Additionally, it provides remote ADB debugging capabilities, allowing device connection via WiFi or network for flexible remote control and development.
@@ -223,6 +250,30 @@ agent = PhoneAgent(model_config=model_config)
 result = agent.run("Open eBay and search for wireless earphones")
 print(result)
 ```
+
+## 🖥️ Web UI Features
+
+Our Web Interface offers rich functionality to make operations easier:
+
+### Interface Layout and Features
+
+- **Left Control Panel**:
+  - **Status**: Independent "Task Status" (System) and "Device Status" (Manual Check) with detailed connection info.
+  - **Command Input**: Large input box supporting multi-line input, equipped with "Execute" and "Stop" buttons.
+  - **Configuration**: Expanded by default, supporting quick switching between Zhipu AI and custom model services.
+  - **Utilities**: Expanded by default, offering convenient functions like viewing third-party app lists.
+
+- **Right Log Window**:
+  - **Real-time Terminal Sync**: Fully synchronized with backend terminal output in an immersive black background.
+  - **Smart Auto-scroll**: JS-based forced auto-scrolling ensures you always see the latest logs.
+  - **Convenient Operations**: "Copy Logs" (one-click copy to clipboard) and "Clear Logs" buttons at the bottom.
+  - **Adaptive Height**: Optimized height design ensures all controls are visible in full screen.
+
+### Core Features
+- **📱 Dual Status Monitoring** - Separated task execution and device connection status for clearer information.
+- **⚙️ Out-of-the-box Configuration** - Default expanded configuration panels reduce click depth.
+- **💬 Immersive Log Experience** - Terminal-grade log window with one-click copy and auto-scroll.
+- **🔄 Robust Backend Interaction** - Uses polling mechanism for better stability compared to WebSocket, supporting real-time task stopping.
 
 ## Remote Debugging
 
