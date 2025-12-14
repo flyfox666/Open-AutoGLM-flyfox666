@@ -17,6 +17,12 @@ https://raw.githubusercontent.com/zai-org/Open-AutoGLM/refs/heads/main/README.md
 
 Open-AutoGLM 是一个基于 AutoGLM 构建的手机端智能助理框架，它能够以多模态方式理解手机屏幕内容，并通过自动化操作帮助用户完成任务。系统通过 ADB(Android Debug Bridge)来控制设备，以视觉语言模型进行屏幕感知，再结合智能规划能力生成并执行操作流程。用户只需用自然语言描述需求，如"打开小红书搜索美食"，Open-AutoGLM 即可自动解析意图、理解当前界面、规划下一步动作并完成整个流程。系统还内置敏感操作确认机制，并支持在登录或验证码场景下进行人工接管。同时，它提供远程 ADB 调试能力，可通过 WiFi 或网络连接设备，实现灵活的远程控制与开发。
 
+
+
+
+https://github.com/user-attachments/assets/3d405b20-58de-499f-a969-72c6de410b71
+
+
 > ⚠️
 > 本项目仅供研究和学习使用。严禁用于非法获取信息、干扰系统或任何违法活动。请仔细审阅 [使用条款](resources/privacy_policy.txt)。
 
@@ -38,7 +44,7 @@ python start_web_ui.py
 ```
 
 
-https://github.com/user-attachments/assets/b704bb6a-0622-465a-99e5-84e02e17994a
+
 
 
 ### 方式二：联合启动（Web UI + scrcpy屏幕镜像）/作者增加的
@@ -104,6 +110,8 @@ export PATH=${PATH}:~/Downloads/platform-tools
 
 **Windows 配置：**
 参考 [第三方教程](https://blog.csdn.net/x2584179909/article/details/108319973) 进行配置。
+
+参考：https://www.cnblogs.com/eslzzyl/p/19341707
 
 ### 3. Android 设备准备
 
