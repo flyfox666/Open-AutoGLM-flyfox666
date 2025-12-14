@@ -37,6 +37,10 @@ python start_web_ui.py
 # 3. 访问 http://localhost:8865
 ```
 
+
+https://github.com/user-attachments/assets/b704bb6a-0622-465a-99e5-84e02e17994a
+
+
 ### 方式二：联合启动（Web UI + scrcpy屏幕镜像）/作者增加的
 
 使用我们的一键启动脚本，同时启动 Web 界面和屏幕镜像：
@@ -53,6 +57,8 @@ python start_all.py
 - 自动打开 Web 界面 (http://localhost:8865)
 - 启动 scrcpy 屏幕镜像窗口
 - 支持同时进行智能控制和手动操作
+
+
 
 ### 方式三：命令行/代码原生
 
