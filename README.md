@@ -2,15 +2,7 @@
 
 [Readme in English](README_en.md)
 
-<div align="center">
-<img src=resources/logo.svg width="20%"/>
-</div>
-<p align="center">
-    👋 加入我们的 <a href="resources/WECHAT.md" target="_blank">微信</a> 社区
-</p>
-<p align="center">
-    🎤 进一步在我们的产品 <a href="https://autoglm.zhipuai.cn/autotyper/" target="_blank">智谱 AI 输入法</a> 体验"用嘴发指令"
-</p>
+基于https://github.com/zai-org/Open-AutoGLM 使用Gradio，增加了webui页面
 
 ## 懒人版快速安装
 
@@ -30,7 +22,7 @@ Open-AutoGLM 是一个基于 AutoGLM 构建的手机端智能助理框架，它�
 
 ## 🚀 快速开始
 
-### 方式一：Web 界面（推荐）
+### 方式一：Web 界面（推荐）/作者增加的
 
 我们提供了现代化的 Web 界面，让操作更加便捷：
 
@@ -45,7 +37,7 @@ python start_web_ui.py
 # 3. 访问 http://localhost:8865
 ```
 
-### 方式二：联合启动（Web UI + 屏幕镜像）
+### 方式二：联合启动（Web UI + scrcpy屏幕镜像）/作者增加的
 
 使用我们的一键启动脚本，同时启动 Web 界面和屏幕镜像：
 
@@ -62,7 +54,7 @@ python start_all.py
 - 启动 scrcpy 屏幕镜像窗口
 - 支持同时进行智能控制和手动操作
 
-### 方式三：命令行
+### 方式三：命令行/代码原生
 
 ```bash
 # 交互模式---本地部署
@@ -112,16 +104,36 @@ export PATH=${PATH}:~/Downloads/platform-tools
 - Android 7.0+ 的设备或模拟器
 - 启用 `开发者模式` 和 `USB 调试`
 - 部分机型需要同时开启 `USB 调试(安全设置)`
+- 然后需要到手机的开发者设置中开启 USB 调试，小米系手机还需要额外开启 USB 调试（安全设置），这个选项要求手机必须插入 SIM 卡才能开启，开启后可以移除 SIM 卡。
 
 ### 4. 安装 ADB Keyboard（用于文本输入）
 
-下载 [ADBKeyboard.apk](https://github.com/senzhk/ADBKeyBoard/blob/master/ADBKeyboard.apk) 并安装到安卓设备。
+-下载 [ADBKeyboard.apk](https://github.com/senzhk/ADBKeyBoard/blob/master/ADBKeyboard.apk) 并安装到安卓设备。
+
+-APK文件已经放在项目文件夹下
+
+-下载 [ADBKeyboard.apk](https://github.com/senzhk/ADBKeyBoard/blob/master/ADBKeyboard.apk) 并安装到安卓设备。
+
+-APK文件已经放在项目文件夹下
+
+### 5. 安装 scrcpy（用于显示手机中的屏幕）
+
+项目地址：https://github.com/Genymobile/scrcpy
+
+这是一个在电脑上显示手机屏幕的工具。使用这个工具可以直接在电脑屏幕上监视手机屏幕，比较方便。
+
+确保手机连接到电脑，从 Release 中下载最新包，解压后运行 scrcpy-console.bat （实际就是打开scrcpy.exe）后应当可以看到手机的投屏。
+
+项目中已经放了文件夹：scrcpy-win64-v3.3.3
+
+使用我的一键启动则会自动连接
+
 
 ## 🎯 模型服务配置
 
-### 选项 A：使用第三方模型服务（推荐）
+### 选项 A：使用第三方模型服务（强烈推荐）
 
-**智谱 BigModel：**
+**智谱 BigModel：现在免费**
 - 文档: https://docs.bigmodel.cn/cn/api/introduction
 - `--base-url`: `https://open.bigmodel.cn/api/paas/v4`
 - `--model`: `autoglm-phone`
@@ -135,7 +147,7 @@ export PATH=${PATH}:~/Downloads/platform-tools
 
 ### 选项 B：本地部署模型
 
-需要 NVIDIA GPU (建议24GB+显存)：
+需要 NVIDIA GPU (建议24GB+显存)：我的4090还没试过
 
 ```bash
 # 使用 vLLM 部署
