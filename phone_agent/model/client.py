@@ -149,7 +149,7 @@ class ModelClient:
         lang = self.config.lang
         print()
         print("=" * 50)
-        print(f"⏱️  {get_message('performance_metrics', lang)}:")
+        print(f"{get_message('performance_metrics', lang)}:")
         print("-" * 50)
         if time_to_first_token is not None:
             print(

@@ -75,6 +75,8 @@ class ADBConnection:
                 [self.adb_path, "connect", address],
                 capture_output=True,
                 text=True,
+                encoding='utf-8',
+                errors='ignore',
                 timeout=timeout,
             )
 
@@ -107,7 +109,7 @@ class ADBConnection:
             if address:
                 cmd.append(address)
 
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=5)
+            result = subprocess.run(cmd, capture_output=True, text=True, encoding='utf-8', errors='ignore', timeout=5)
 
             output = result.stdout + result.stderr
             return True, output.strip() or "Disconnected"
@@ -127,6 +129,8 @@ class ADBConnection:
                 [self.adb_path, "devices", "-l"],
                 capture_output=True,
                 text=True,
+                encoding='utf-8',
+                errors='ignore',
                 timeout=5,
             )
 
@@ -239,7 +243,7 @@ class ADBConnection:
                 cmd.extend(["-s", device_id])
             cmd.extend(["tcpip", str(port)])
 
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
+            result = subprocess.run(cmd, capture_output=True, text=True, encoding='utf-8', errors='ignore', timeout=10)
 
             output = result.stdout + result.stderr
 
@@ -268,7 +272,7 @@ class ADBConnection:
                 cmd.extend(["-s", device_id])
             cmd.extend(["shell", "ip", "route"])
 
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=5)
+            result = subprocess.run(cmd, capture_output=True, text=True, encoding='utf-8', errors='ignore', timeout=5)
 
             # Parse IP from route output
             for line in result.stdout.split("\n"):
@@ -284,6 +288,8 @@ class ADBConnection:
                 cmd[:-1] + ["shell", "ip", "addr", "show", "wlan0"],
                 capture_output=True,
                 text=True,
+                encoding='utf-8',
+                errors='ignore',
                 timeout=5,
             )
 
@@ -309,14 +315,14 @@ class ADBConnection:
         try:
             # Kill server
             subprocess.run(
-                [self.adb_path, "kill-server"], capture_output=True, timeout=5
+                [self.adb_path, "kill-server"], capture_output=True, text=True, encoding='utf-8', errors='ignore', timeout=5
             )
 
             time.sleep(1)
 
             # Start server
             subprocess.run(
-                [self.adb_path, "start-server"], capture_output=True, timeout=5
+                [self.adb_path, "start-server"], capture_output=True, text=True, encoding='utf-8', errors='ignore', timeout=5
             )
 
             return True, "ADB server restarted"

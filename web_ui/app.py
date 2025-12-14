@@ -1,0 +1,510 @@
+"""
+Gradio Web UI for AutoGLM
+提供用户友好的Web界面来使用AutoGLM进行Android设备自动化操作
+"""
+
+import gradio as gr
+import subprocess
+import threading
+import queue
+import time
+import os
+import json
+from typing import Optional, Tuple, Dict, Any, Generator
+
+# 预设的模型配置
+PRESET_CONFIGS = {
+    "智谱AI (官方服务)": {
+        "base_url": "https://open.bigmodel.cn/api/paas/v4",
+        "model": "autoglm-phone",
+        "description": "智谱AI官方提供的AutoGLM服务，需要API Key"
+    }
+}
+
+# 检查Gradio版本兼容性
+GRADIO_VERSION = gr.__version__.split('.')[0]  # 获取主版本号
+SUPPORTS_SHOW_COPY_BUTTON = False
+
+# 尝试检查是否支持show_copy_button
+try:
+    import inspect
+    sig = inspect.signature(gr.Textbox.__init__)
+    if 'show_copy_button' in sig.parameters:
+        SUPPORTS_SHOW_COPY_BUTTON = True
+except:
+    pass
+
+class AutoGLMInterface:
+    def __init__(self):
+        self.process_queue = queue.Queue()
+        self.current_process = None
+        self.stop_flag = threading.Event()
+
+    def execute_command_stream(self, command: str, base_url: str, model: str,
+                             api_key: str = "", device_id: str = "") -> Generator[str, None, None]:
+        """执行AutoGLM命令 - 流式输出"""
+        try:
+            # 获取项目根目录（包含main.py的目录）
+            project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            main_py_path = os.path.join(project_root, "main.py")
+
+            # 构建环境变量
+            env = os.environ.copy()
+            env['PYTHONIOENCODING'] = 'utf-8'
+
+            # 构建命令参数
+            cmd = [
+                'python', main_py_path,
+                '--base-url', base_url,
+                '--model', model,
+                command
+            ]
+
+            if api_key:
+                cmd.extend(['--apikey', api_key])
+            if device_id:
+                cmd.extend(['--device-id', device_id])
+
+            # 设置进度回调
+            def progress_callback(progress=0.0, desc="处理中..."):
+                pass  # Gradio会自动处理进度
+
+            # 执行命令 - 同时显示终端输出和捕获结果
+            self.stop_flag.clear()
+
+            # 创建子进程，允许终端输出显示
+            process = subprocess.Popen(
+                cmd,
+                cwd=project_root,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,  # 将stderr重定向到stdout
+                text=True,
+                encoding='utf-8',
+                errors='ignore',
+                env=env,
+                universal_newlines=True
+            )
+
+            # 实时读取输出并流式返回
+            try:
+                for line in iter(process.stdout.readline, ''):
+                    if line:
+                        # 实时打印到终端
+                        print(line.rstrip('\n'))
+
+                        # 过滤并流式返回有用的输出
+                        line_stripped = line.rstrip('\n')
+                        if (line_stripped.strip() and
+                            not line_stripped.startswith('[DEBUG]') and
+                            not line_stripped.startswith('INFO:')):
+                            yield line_stripped
+
+                # 等待进程完成
+                process.wait()
+                yield "\n执行完成"
+
+            except subprocess.TimeoutExpired:
+                process.kill()
+                process.wait()
+                yield "执行超时，请检查设备连接或重试"
+
+        except Exception as e:
+            yield f"执行出错: {str(e)}"
+
+    def execute_command(self, command: str, base_url: str, model: str,
+                       api_key: str = "", device_id: str = "") -> str:
+        """执行AutoGLM命令（兼容性方法）"""
+        result = ""
+        for chunk in self.execute_command_stream(command, base_url, model, api_key, device_id):
+            result += chunk + "\n"
+        return result
+
+    def get_available_apps(self):
+        """获取可用应用列表"""
+        try:
+            result = subprocess.run(
+                ["adb", "shell", "pm", "list", "packages", "-3"],
+                capture_output=True,
+                text=True,
+                encoding='utf-8',
+                errors='ignore',
+                timeout=10
+            )
+
+            if result.returncode == 0:
+                packages = result.stdout.strip().split('\n')
+                app_list = []
+                for pkg in packages:
+                    if pkg.startswith('package:'):
+                        app_name = pkg.replace('package:', '')
+                        app_list.append(app_name)
+
+                if app_list:
+                    return f"找到 {len(app_list)} 个第三方应用:\n\n" + '\n'.join(sorted(app_list)[:50])
+                else:
+                    return "未找到第三方应用"
+            else:
+                return "获取应用列表失败，请检查设备连接"
+
+        except Exception as e:
+            return f"获取应用列表出错: {str(e)}"
+
+    def check_device_status(self):
+        """检查设备连接状态"""
+        try:
+            result = subprocess.run(
+                ["adb", "devices", "-l"],
+                capture_output=True,
+                text=True,
+                encoding='utf-8',
+                errors='ignore',
+                timeout=10
+            )
+
+            if result.returncode == 0:
+                lines = result.stdout.strip().split("\n")
+                devices = []
+
+                for line in lines[1:]:  # 跳过标题行
+                    if line.strip():
+                        # 使用正则表达式匹配
+                        import re
+                        if re.search(r'^[a-zA-Z0-9]+\s+device\b', line):
+                            parts = line.split()
+                            if len(parts) >= 2:
+                                device_id = parts[0]
+                                status = parts[1]
+                                # 提取设备型号
+                                model = "未知型号"
+                                for part in parts[2:]:
+                                    if part.startswith("model:"):
+                                        model = part.split(":", 1)[1]
+                                        break
+                                devices.append(f"设备ID: {device_id}\n型号: {model}")
+
+                if devices:
+                    device_info = f"已检测到 {len(devices)} 个设备\n\n" + "\n\n".join(devices)
+                    return "已连接", device_info
+                else:
+                    return "未连接", "未检测到Android设备"
+            else:
+                return "检查失败", "ADB命令执行失败"
+
+        except Exception as e:
+            return "检查失败", f"检查设备状态时出错: {str(e)}"
+
+def run_autoglm_command_stream(command: str, use_preset: bool, preset_base_url: str, preset_model: str,
+                              api_key: str, device_id: str, custom_base_url: str, custom_model: str,
+                              custom_api_key: str, custom_device_id: str):
+    """运行AutoGLM命令的流式包装函数 - 累积式输出"""
+    try:
+        autoglm = AutoGLMInterface()
+
+        # 根据选择的类型决定使用哪种配置
+        if use_preset:
+            base_url = preset_base_url
+            model = preset_model
+            api_key_to_use = api_key
+            device_id_to_use = device_id
+        else:
+            base_url = custom_base_url
+            model = custom_model
+            api_key_to_use = custom_api_key
+            device_id_to_use = custom_device_id
+
+        # 验证必要的参数
+        if not base_url or not model:
+            yield "错误: 请配置base_url和model"
+            return
+
+        if not command.strip():
+            yield "错误: 请输入命令"
+            return
+
+        # 检查智谱AI服务的API Key
+        if base_url == "https://open.bigmodel.cn/api/paas/v4" and not api_key_to_use:
+            yield "错误: 使用智谱AI服务必须提供API Key"
+            return
+
+        # 显示命令信息
+        cmd_info = f"执行命令: {command}\n模型: {model}\nBase URL: {base_url}"
+        if api_key_to_use:
+            cmd_info += f"\nAPI Key: {api_key_to_use[:10]}..."
+        if device_id_to_use:
+            cmd_info += f"\n设备ID: {device_id_to_use}"
+
+        accumulated_output = f"{cmd_info}\n{'='*50}\n"
+        yield accumulated_output
+
+        # 流式执行命令 - 累积式输出
+        for chunk in autoglm.execute_command_stream(
+            command=command,
+            base_url=base_url,
+            model=model,
+            api_key=api_key_to_use,
+            device_id=device_id_to_use
+        ):
+            if chunk.strip():  # 只处理非空输出
+                accumulated_output += chunk + "\n"
+                yield accumulated_output
+
+    except Exception as e:
+        yield f"执行失败: {str(e)}"
+
+def run_autoglm_command(command: str, use_preset: bool, preset_base_url: str, preset_model: str,
+                        api_key: str, device_id: str, custom_base_url: str, custom_model: str,
+                        custom_api_key: str, custom_device_id: str, progress=gr.Progress()):
+    """运行AutoGLM命令的包装函数（保持兼容性）"""
+    result = ""
+    for chunk in run_autoglm_command_stream(
+        command, use_preset, preset_base_url, preset_model,
+        api_key, device_id, custom_base_url, custom_model,
+        custom_api_key, custom_device_id
+    ):
+        result += chunk + "\n"
+        progress(min(0.9, len(result) / 1000), desc="正在执行命令...")
+
+    progress(1.0, desc="完成!")
+    return result
+
+def create_ui():
+    """创建Gradio界面"""
+    autoglm = AutoGLMInterface()
+
+    with gr.Blocks(title="AutoGLM - Android设备自动化", theme=gr.themes.Soft()) as demo:
+
+        # 标题和说明
+        gr.Markdown("""
+        # 🤖 AutoGLM Web界面
+
+        智能Android设备自动化操作平台 - 通过自然语言控制您的Android设备
+        """, elem_classes=["header"])
+
+        with gr.Row():
+            # 左侧：配置和状态
+            with gr.Column(scale=1):
+                # 设备状态
+                gr.Markdown("### 设备状态")
+                with gr.Row():
+                    status_btn = gr.Button("检查状态", size="sm")
+                    status_text = gr.Textbox(label="连接状态", interactive=False, elem_classes=["status-card"])
+                status_detail = gr.Textbox(label="详细信息", interactive=False, elem_classes=["status-card"])
+
+                # 模型配置
+                gr.Markdown("### 模型配置")
+
+                # 使用Radio按钮选择配置类型
+                config_type = gr.Radio(
+                    choices=["智谱AI服务(推荐)", "自定义模型服务"],
+                    value="智谱AI服务(推荐)",
+                    label="选择配置类型"
+                )
+
+                # 根据选择显示不同配置
+                with gr.Group(visible=True) as preset_group:
+                    gr.Markdown("""
+                    ### 智谱AI官方服务
+                    使用智谱AI提供的AutoGLM服务，需要获取API Key
+
+                    **获取API Key:**
+                    1. 访问 [智谱AI开放平台](https://open.bigmodel.cn/)
+                    2. 注册并登录账号
+                    3. 创建API Key
+                    """)
+
+                    # 固定的智谱AI配置
+                    preset_base_url = gr.Textbox(
+                        value="https://open.bigmodel.cn/api/paas/v4",
+                        visible=False
+                    )
+                    preset_model = gr.Textbox(
+                        value="autoglm-phone",
+                        visible=False
+                    )
+
+                    # API Key输入框
+                    api_key = gr.Textbox(
+                        label="API Key (必填)",
+                        type="password",
+                        placeholder="请输入您的智谱AI API Key"
+                    )
+
+                    gr.Examples(
+                        examples=["sk-xxxxxxxx"],
+                        inputs=[api_key],
+                        label="示例格式"
+                    )
+
+                    device_id = gr.Textbox(
+                        label="设备ID (可选)",
+                        placeholder="多设备时指定",
+                        value=""
+                    )
+
+                with gr.Group(visible=False) as custom_group:
+                    gr.Markdown("""
+                    ### 自定义模型服务
+                    如果您有自己的模型服务，可以在此配置
+                    """)
+
+                    custom_base_url = gr.Textbox(
+                        label="Base URL",
+                        placeholder="http://localhost:8000/v1"
+                    )
+                    custom_model = gr.Textbox(
+                        label="模型名称",
+                        placeholder="autoglm-phone-9b"
+                    )
+                    custom_api_key = gr.Textbox(
+                        label="API Key (可选)",
+                        type="password",
+                        placeholder="如果需要请输入"
+                    )
+                    custom_device_id = gr.Textbox(
+                        label="设备ID (可选)",
+                        placeholder="多设备时指定"
+                    )
+
+                # 根据选择的类型显示/隐藏对应组
+                def toggle_config(choice):
+                    if choice == "智谱AI服务(推荐)":
+                        return gr.update(visible=True), gr.update(visible=False), True
+                    else:
+                        return gr.update(visible=False), gr.update(visible=True), False
+
+                config_state = gr.State(value=True)  # True表示使用预设(智谱AI)，False表示使用自定义
+
+                config_type.change(
+                    fn=toggle_config,
+                    inputs=[config_type],
+                    outputs=[preset_group, custom_group, config_state]
+                )
+
+                # 应用列表
+                gr.Markdown("### 支持的应用")
+                apps_btn = gr.Button("获取应用列表", size="sm")
+                apps_list = gr.Textbox(label="可用应用", interactive=False, lines=10)
+
+            # 右侧：命令执行和结果
+            with gr.Column(scale=2):
+                gr.Markdown("### 命令输入")
+
+                # 命令示例
+                with gr.Accordion("命令示例", open=False):
+                    gr.Markdown("""
+                    - "打开美团搜索附近的火锅店"
+                    - "发送微信消息给张三"
+                    - "打开抖音并搜索美食视频"
+                    - "设置明天早上8点的闹钟"
+                    - "拍照并发送给联系人"
+                    """)
+
+                command_input = gr.Textbox(
+                    label="输入您的命令",
+                    placeholder="例如：打开美团搜索附近的火锅店",
+                    lines=2
+                )
+
+                execute_btn = gr.Button("执行命令", variant="primary", size="lg")
+
+                gr.Markdown("### 执行结果")
+                # 根据Gradio版本决定是否使用show_copy_button
+                textbox_kwargs = {
+                    "label": "输出结果",
+                    "interactive": False,
+                    "lines": 20,
+                    "max_lines": 50
+                }
+                if SUPPORTS_SHOW_COPY_BUTTON:
+                    textbox_kwargs["show_copy_button"] = True
+
+                result_output = gr.Textbox(**textbox_kwargs)
+
+                with gr.Row():
+                    clear_btn = gr.Button("清空结果", size="sm")
+                    copy_btn = gr.Button("复制结果", size="sm")
+
+        # 事件绑定
+        status_btn.click(
+            fn=autoglm.check_device_status,
+            outputs=[status_text, status_detail]
+        )
+
+        apps_btn.click(
+            fn=autoglm.get_available_apps,
+            outputs=[apps_list]
+        )
+
+        execute_btn.click(
+            fn=run_autoglm_command_stream,
+            inputs=[
+                command_input,
+                config_state,
+                preset_base_url,
+                preset_model,
+                api_key,
+                device_id,
+                custom_base_url,
+                custom_model,
+                custom_api_key,
+                custom_device_id
+            ],
+            outputs=[result_output],
+            show_progress=True
+        )
+
+        # 清空和复制功能
+        clear_btn.click(
+            fn=lambda: ("", ""),
+            outputs=[command_input, result_output]
+        )
+
+        copy_btn.click(
+            fn=lambda text: gr.update(value=text),
+            inputs=[result_output],
+            outputs=[result_output]
+        )
+
+        # 初始化时检查设备状态
+        demo.load(
+            fn=autoglm.check_device_status,
+            outputs=[status_text, status_detail]
+        )
+
+    return demo
+
+
+if __name__ == "__main__":
+    # 创建CSS样式
+    css = """
+    .header {
+        text-align: center;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 2rem;
+        border-radius: 10px;
+        margin-bottom: 2rem;
+    }
+
+    .status-card {
+        border: 2px solid #e1e5e9;
+        border-radius: 8px;
+        padding: 1rem;
+        margin-bottom: 1rem;
+        background: #f8f9fa;
+    }
+
+    .container {
+        max-width: 1200px;
+        margin: 0 auto;
+    }
+    """
+
+    demo = create_ui()
+    demo.launch(
+        server_name="0.0.0.0",
+        server_port=8865,
+        share=False,
+        debug=True,
+        css=css
+    )

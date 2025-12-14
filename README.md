@@ -232,6 +232,41 @@ python scripts/check_deployment_cn.py --base-url http://你的IP:你的端口/v1
 
 ## 使用 AutoGLM
 
+### Web UI (推荐)
+
+我们提供了现代化的 Web 界面，让您更方便地使用 AutoGLM。
+
+#### 快速启动
+
+```bash
+# 安装依赖
+pip install -r requirements.txt
+
+# 启动 Web UI
+python start_web_ui.py
+```
+
+启动后访问 `http://localhost:7860` 即可使用 Web 界面。
+
+#### Web UI 特性
+
+- **📱 实时设备状态检查** - 检查 ADB 连接和设备状态
+- **⚙️ 灵活的模型配置** - 支持预设和自定义配置
+- **💬 直观的命令输入** - 自然语言输入命令
+- **📊 实时输出显示** - 查看 AI 的执行过程和结果
+- **📋 应用列表查看** - 查看所有支持的应用
+
+#### 模型配置选项
+
+**选项A: 使用已部署的模型服务(推荐)**
+- 智谱AI官方服务
+- 本地Ollama服务
+- 本地vLLM服务
+
+**选项B: 本地部署模型(高配置要求)**
+- 需要NVIDIA GPU (建议24GB+显存)
+- 支持vLLM和SGLang部署
+
 ### 命令行
 
 根据你部署的模型, 设置 `--base-url` 和 `--model` 参数. 例如:

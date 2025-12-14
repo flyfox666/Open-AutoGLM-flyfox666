@@ -1,0 +1,1 @@
+python main.py --base-url https://open.bigmodel.cn/api/paas/v4 --model "autoglm-phone" --apikey "91cf178671984a5ab118ad9e7987c185.VVP8yQ3fVifG5Gqs" "打开美团搜索附近的火锅店"

@@ -171,7 +171,7 @@ class PhoneAgent:
         try:
             msgs = get_messages(self.agent_config.lang)
             print("\n" + "=" * 50)
-            print(f"💭 {msgs['thinking']}:")
+            print(f"{msgs['thinking']}:")
             print("-" * 50)
             response = self.model_client.request(self._context)
         except Exception as e:
@@ -196,7 +196,7 @@ class PhoneAgent:
         if self.agent_config.verbose:
             # Print thinking process
             print("-" * 50)
-            print(f"🎯 {msgs['action']}:")
+            print(f"{msgs['action']}:")
             print(json.dumps(action, ensure_ascii=False, indent=2))
             print("=" * 50 + "\n")
 
@@ -227,9 +227,9 @@ class PhoneAgent:
 
         if finished and self.agent_config.verbose:
             msgs = get_messages(self.agent_config.lang)
-            print("\n" + "🎉 " + "=" * 48)
+            print("\n" + "=" * 50)
             print(
-                f"✅ {msgs['task_completed']}: {result.message or action.get('message', msgs['done'])}"
+                f"{msgs['task_completed']}: {result.message or action.get('message', msgs['done'])}"
             )
             print("=" * 50 + "\n")
 
