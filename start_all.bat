@@ -18,12 +18,7 @@ echo 正在启动scrcpy屏幕镜像...
 start "scrcpy屏幕镜像" "scrcpy-win64-v3.3.3\scrcpy.exe"
 
 echo.
-echo 等待Web界面就绪...
-timeout /t 3 /nobreak > nul
 
-echo.
-echo 正在打开Web界面...
-start http://localhost:8865
 
 echo.
 echo ========================================
