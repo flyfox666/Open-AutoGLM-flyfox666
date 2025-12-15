@@ -286,27 +286,195 @@ def get_available_apps():
     except Exception as e:
         return str(e)
 
+# --- Scrcpy 启动器 ---
+def start_scrcpy():
+    """启动 scrcpy 屏幕镜像"""
+    try:
+        # scrcpy 可执行文件路径
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        project_dir = os.path.dirname(current_dir)
+        scrcpy_path = os.path.join(project_dir, "scrcpy-win64-v3.3.3", "scrcpy.exe")
+
+        # 调试信息
+        print(f"[DEBUG] 项目目录: {project_dir}")
+        print(f"[DEBUG] scrcpy 路径: {scrcpy_path}")
+        print(f"[DEBUG] 文件存在: {os.path.exists(scrcpy_path)}")
+
+        if not os.path.exists(scrcpy_path):
+            return False, f"未找到 scrcpy.exe: {scrcpy_path}"
+
+        # 检查是否有设备连接
+        result = subprocess.run(["adb", "devices"], capture_output=True, text=True, encoding='utf-8')
+        devices = []
+        for line in result.stdout.split('\n')[1:]:
+            if '\tdevice' in line:
+                device_id = line.split('\t')[0]
+                # 判断是USB还是无线设备
+                if ':' in device_id:
+                    device_type = "无线"
+                else:
+                    device_type = "USB"
+                devices.append(f"{device_type}: {device_id}")
+
+        if not devices:
+            return False, "没有检测到已连接的设备，请先连接设备"
+
+        # 准备启动命令
+        scrcpy_cmd = [scrcpy_path]
+
+        # 如果有多个设备，使用第一个
+        if len(devices) > 1:
+            first_device = devices[0].split(': ')[1]
+            # 尝试指定设备
+            scrcpy_cmd.extend(['-s', first_device])
+            device_info = f"使用第一个设备 ({first_device})"
+        else:
+            device_info = devices[0]
+
+        # 启动 scrcpy
+        def run_scrcpy():
+            try:
+                print(f"[INFO] 启动 scrcpy: {' '.join(scrcpy_cmd)}")
+                # Windows 下在新控制台窗口中启动
+                if os.name == 'nt':
+                    subprocess.Popen(scrcpy_cmd,
+                                   creationflags=subprocess.CREATE_NEW_CONSOLE)
+                else:
+                    subprocess.Popen(scrcpy_cmd)
+                print(f"[INFO] scrcpy 启动成功")
+            except Exception as e:
+                print(f"[ERROR] 启动 scrcpy 失败: {e}")
+
+        # 在新线程中启动，避免阻塞 UI
+        thread = threading.Thread(target=run_scrcpy, daemon=True)
+        thread.start()
+
+        # 等待一下让进程启动
+        time.sleep(0.5)
+
+        return True, f"✅ scrcpy 已启动\n{device_info}"
+
+    except Exception as e:
+        print(f"[ERROR] start_scrcpy 异常: {e}")
+        return False, f"启动 scrcpy 失败: {str(e)}"
+
+def check_adb_connection():
+    """检查ADB连接状态和设备列表"""
+    try:
+        # 检查ADB服务器状态
+        result = subprocess.run(["adb", "start-server"],
+                              capture_output=True, text=True, timeout=5)
+
+        # 获取设备列表
+        result = subprocess.run(["adb", "devices"],
+                              capture_output=True, text=True, timeout=5)
+
+        if result.returncode == 0:
+            lines = result.stdout.strip().split('\n')
+            devices = []
+
+            for line in lines[1:]:  # 跳过第一行标题
+                if line.strip():
+                    parts = line.split('\t')
+                    if len(parts) >= 2:
+                        device_id = parts[0].strip()
+                        status = parts[1].strip()
+                        devices.append(f"📱 {device_id} - {status}")
+
+            if devices:
+                device_info = "\n".join(devices)
+                return True, f"✅ ADB服务正常\n已连接设备:\n{device_info}"
+            else:
+                return False, "⚠️ ADB服务正常但无设备连接\n请检查:\n- 手机是否开启USB调试\n- 数据线是否连接正常\n- 是否已授权此电脑"
+        else:
+            return False, f"❌ ADB命令执行失败\n错误信息: {result.stderr}"
+
+    except FileNotFoundError:
+        return False, "❌ ADB未安装或未添加到PATH\n请安装Android Platform Tools"
+    except subprocess.TimeoutExpired:
+        return False, "❌ ADB命令超时\n请尝试重启ADB服务"
+    except Exception as e:
+        return False, f"❌ 检查ADB连接时出错: {str(e)}"
+
+def restart_adb():
+    """重启ADB服务"""
+    try:
+        # 执行 adb kill-server
+        result_kill = subprocess.run(["adb", "kill-server"],
+                                   capture_output=True, text=True, timeout=10)
+
+        # 等待1秒确保服务完全停止
+        import time
+        time.sleep(1)
+
+        # 执行 adb start-server
+        result_start = subprocess.run(["adb", "start-server"],
+                                    capture_output=True, text=True, timeout=10)
+
+        if result_kill.returncode == 0 and result_start.returncode == 0:
+            # 再次检查设备列表
+            result_devices = subprocess.run(["adb", "devices"],
+                                          capture_output=True, text=True, timeout=5)
+
+            if result_devices.returncode == 0:
+                lines = result_devices.stdout.strip().split('\n')
+                devices = []
+
+                for line in lines[1:]:  # 跳过第一行标题
+                    if line.strip():
+                        parts = line.split('\t')
+                        if len(parts) >= 2:
+                            device_id = parts[0].strip()
+                            status = parts[1].strip()
+                            devices.append(f"📱 {device_id} - {status}")
+
+                if devices:
+                    device_info = "\n".join(devices)
+                    return True, f"✅ ADB服务重启成功\n\n当前连接设备:\n{device_info}"
+                else:
+                    return True, "✅ ADB服务重启成功\n\n当前无设备连接\n请连接设备并开启USB调试"
+            else:
+                return True, "✅ ADB服务重启成功\n\n注意：无法获取设备列表"
+        else:
+            error_msg = ""
+            if result_kill.returncode != 0:
+                error_msg += f"停止ADB失败: {result_kill.stderr}\n"
+            if result_start.returncode != 0:
+                error_msg += f"启动ADB失败: {result_start.stderr}"
+            return False, f"❌ ADB重启失败\n{error_msg}"
+
+    except FileNotFoundError:
+        return False, "❌ ADB未安装或未添加到PATH\n请安装Android Platform Tools"
+    except subprocess.TimeoutExpired:
+        return False, "❌ ADB命令超时\n请手动执行:\nadb kill-server\nadb start-server"
+    except Exception as e:
+        return False, f"❌ 重启ADB时出错: {str(e)}"
+
 # --- Gradio 界面 ---
 
 def create_ui():
     with gr.Blocks(title="AutoGLM Web Controller") as demo:
-        
+
         gr.Markdown("## 🤖 Open-AutoGLM 控制台")
-        
+
         with gr.Row():
-            # 左侧：配置与操作
+            # 左列：设备状态和无线调试
             with gr.Column(scale=1, min_width=300):
-                
-                # 状态与控制
                 with gr.Group():
+                    gr.Markdown("### 📱 设备管理")
+
                     # 设备状态显示
                     device_status = gr.Textbox(
                         label="设备状态",
                         value="❓ 未检查",
                         interactive=False,
-                        lines=5
+                        lines=6
                     )
-                    check_status_btn = gr.Button("🔄 检查设备状态", size="sm")
+                    # 设备管理按钮行
+                    with gr.Row():
+                        check_status_btn = gr.Button("🔄 检查设备状态", size="sm")
+                        adb_devices_btn = gr.Button("📋 ADB设备列表", size="sm")
+                        restart_adb_btn = gr.Button("🔄 重启ADB服务", size="sm")
 
                     # 无线调试部分
                     with gr.Accordion("📶 无线调试", open=True):
@@ -329,8 +497,8 @@ def create_ui():
                             disconnect_wireless_btn = gr.Button("✂️ 断开无线设备")
 
                         # USB转无线
-                        gr.Markdown("### USB设备转无线调试")
-                        enable_tcpip_btn = gr.Button("📡 启用TCP/IP模式（USB转无线）")
+                        gr.Markdown("### USB转无线")
+                        enable_tcpip_btn = gr.Button("📡 启用TCP/IP模式")
 
                         # 连接状态
                         wireless_status = gr.Textbox(
@@ -340,26 +508,51 @@ def create_ui():
                             lines=2
                         )
 
-                    task_status = gr.Textbox(label="任务状态", value="⚪ 就绪", interactive=False)
-                    
-                    user_input = gr.Textbox(
-                        label="输入指令", 
-                        placeholder="例如：打开微信给文件传输助手发你好", 
-                        lines=3
+            # 中列：命令输入和执行控制
+            with gr.Column(scale=2, min_width=350):
+                with gr.Group():
+                    gr.Markdown("### 🎯 命令执行")
+
+                    task_status = gr.Textbox(
+                        label="任务状态",
+                        value="⚪ 就绪",
+                        interactive=False,
+                        lines=2
                     )
-                    
+
+                    user_input = gr.Textbox(
+                        label="输入指令",
+                        placeholder="例如：打开微信给文件传输助手发你好",
+                        lines=6,
+                        max_lines=10
+                    )
+
                     with gr.Row():
                         submit_btn = gr.Button("▶ 执行", variant="primary", scale=2)
                         stop_btn = gr.Button("⏹ 停止", variant="stop", scale=1)
 
-                # 配置项 (展开)
-                with gr.Accordion("⚙️ 参数配置", open=True):
+                    gr.Markdown("---")
+                    gr.Markdown("### 💡 命令示例")
+                    with gr.Accordion("点击查看示例", open=False):
+                        gr.Markdown("""
+                        - 打开美团搜索附近的火锅店
+                        - 发送微信消息给张三
+                        - 打开抖音搜索美食视频
+                        - 设置明天早上8点的闹钟
+                        - 拍照并发送给联系人
+                        """)
+
+            # 右列：参数配置和实用工具
+            with gr.Column(scale=1, min_width=350):
+                with gr.Group():
+                    gr.Markdown("### ⚙️ 参数配置")
+
                     with gr.Tabs():
                         with gr.TabItem("智谱AI"):
                             api_key = gr.Textbox(label="API Key", type="password", value=os.environ.get("PHONE_AGENT_API_KEY", ""))
                             model_name = gr.Textbox(label="Model", value="autoglm-phone", visible=False)
                             base_url = gr.Textbox(label="Base URL", value="https://open.bigmodel.cn/api/paas/v4", visible=False)
-                        
+
                         with gr.TabItem("自定义"):
                             custom_base_url = gr.Textbox(label="Base URL", value="http://localhost:8000/v1")
                             custom_model = gr.Textbox(label="Model", value="autoglm-phone-9b")
@@ -368,25 +561,57 @@ def create_ui():
                     device_dd = gr.Dropdown(label="设备", choices=[], value=None)
                     refresh_dev_btn = gr.Button("刷新设备列表", size="sm")
 
-                # 工具
-                with gr.Accordion("📱 实用工具", open=True):
-                    list_apps_btn = gr.Button("查看第三方应用列表")
-                    app_list_output = gr.Textbox(label="应用列表", lines=10, interactive=False)
+                with gr.Group():
+                    gr.Markdown("### 📱 实用工具")
 
-            # 右侧：实时日志
-            with gr.Column(scale=2, min_width=500):
+                    # 屏幕镜像按钮
+                    scrcpy_btn = gr.Button("🖥️ 启动屏幕镜像", variant="primary")
+
+                    # scrcpy 状态显示
+                    scrcpy_status = gr.Textbox(
+                        label="屏幕镜像状态",
+                        value="未启动",
+                        interactive=False,
+                        lines=2
+                    )
+
+                    # 可折叠的应用列表
+                    with gr.Accordion("📲 第三方应用列表", open=False):
+                        list_apps_btn = gr.Button("获取应用列表", variant="secondary", size="sm")
+                        app_list_output = gr.Textbox(
+                            label="应用列表",
+                            lines=8,
+                            max_lines=15,
+                            interactive=False
+                        )
+
+        # 底部：日志区域
+        gr.Markdown("---")
+        gr.Markdown("### 📋 实时日志")
+
+        with gr.Row():
+            # 日志主体
+            with gr.Column(scale=5):
                 log_output = gr.Textbox(
-                    label="💻 终端实时日志",
+                    label="终端实时日志",
                     value="",
-                    lines=33,
-                    max_lines=33,
+                    lines=20,
+                    max_lines=30,
                     interactive=False,
-                    autoscroll=True,  # 自动滚动
                     elem_id="log-window"
                 )
+
+            # 日志控制按钮
+            with gr.Column(scale=1):
                 with gr.Row():
-                    copy_log_btn = gr.Button("📋 复制日志", size="sm")
-                    clear_log_btn = gr.Button("🗑 清空日志", size="sm")
+                    copy_log_btn = gr.Button("📋 复制", size="sm")
+                with gr.Row():
+                    clear_log_btn = gr.Button("🗑 清空", size="sm")
+                gr.HTML("""
+                <div style='margin-top: 10px; font-size: 0.8em; color: #888;'>
+                💡 日志会自动滚动到最新位置
+                </div>
+                """)
 
         # --- 逻辑绑定 ---
         
@@ -402,6 +627,12 @@ def create_ui():
 
         # 列出应用
         list_apps_btn.click(get_available_apps, outputs=app_list_output)
+
+        # 启动 scrcpy
+        scrcpy_btn.click(
+            fn=start_scrcpy,
+            outputs=[scrcpy_status]
+        )
 
         # 核心：提交命令
         def submit_command(prompt, use_tab, z_key, z_model, z_url, c_url, c_model, c_key, device):
@@ -541,19 +772,94 @@ def create_ui():
             outputs=[device_status, wireless_status]
         )
 
+        # ADB设备列表按钮
+        def handle_adb_devices():
+            success, message = check_adb_connection()
+            # 刷新设备状态显示
+            if success:
+                # 只返回设备信息部分
+                lines = message.split('\n')
+                device_lines = []
+                for line in lines:
+                    if line.startswith('📱'):
+                        device_lines.append(line)
+                if device_lines:
+                    return '\n'.join(device_lines), message
+                else:
+                    return "无设备连接", message
+            else:
+                return "检查失败", message
+
+        adb_devices_btn.click(
+            handle_adb_devices,
+            outputs=[device_status, wireless_status]
+        )
+
+        # 重启ADB服务按钮
+        def handle_restart_adb():
+            success, message = restart_adb()
+            # 刷新设备状态显示
+            if success:
+                lines = message.split('\n')
+                device_lines = []
+                for line in lines:
+                    if line.startswith('📱'):
+                        device_lines.append(line)
+                if device_lines:
+                    return '\n'.join(device_lines), message
+                else:
+                    return "ADB服务已重启", message
+            else:
+                return "重启失败", message
+
+        restart_adb_btn.click(
+            handle_restart_adb,
+            outputs=[device_status, wireless_status]
+        )
+
         # 复制日志 (JS实现)
         copy_log_btn.click(
             fn=None,
             inputs=[],
             outputs=[],
             js="""() => {
-                const el = document.querySelector('#log-window textarea');
+                // Gradio 6.x 中尝试多种选择器
+                let el = document.querySelector('#log-window textarea');
+                if (!el) {
+                    el = document.querySelector('#log-window');
+                }
+                if (!el) {
+                    el = document.querySelector('[data-testid="log-window"] textarea');
+                }
+                if (!el) {
+                    el = document.querySelector('[data-testid="log-window"]');
+                }
+
                 if (el) {
-                    navigator.clipboard.writeText(el.value).then(() => {
-                        alert('日志已复制到剪贴板');
-                    }).catch(err => {
-                        console.error('复制失败:', err);
-                    });
+                    let text = el.value || el.textContent || el.innerText;
+                    if (text) {
+                        navigator.clipboard.writeText(text).then(() => {
+                            alert('日志已复制到剪贴板');
+                        }).catch(err => {
+                            // 降级方案：使用传统方法
+                            try {
+                                const textarea = document.createElement('textarea');
+                                textarea.value = text;
+                                document.body.appendChild(textarea);
+                                textarea.select();
+                                document.execCommand('copy');
+                                document.body.removeChild(textarea);
+                                alert('日志已复制到剪贴板');
+                            } catch (fallbackErr) {
+                                console.error('复制失败:', err);
+                                alert('复制失败，请手动选择文本复制');
+                            }
+                        });
+                    } else {
+                        alert('没有可复制的日志内容');
+                    }
+                } else {
+                    alert('找不到日志窗口');
                 }
             }"""
         )
@@ -568,8 +874,18 @@ def create_ui():
             js="""(logs, status) => {
                 // 简单的 JS 技巧：延迟一下确保DOM更新，然后滚动到底部
                 setTimeout(() => {
-                    const el = document.querySelector('#log-window textarea');
-                    if (el) el.scrollTop = el.scrollHeight;
+                    // Gradio 6.x 中选择器可能不同
+                    let el = document.querySelector('#log-window textarea');
+                    if (!el) {
+                        // 尝试其他可能的选择器
+                        el = document.querySelector('#log-window');
+                        if (!el) {
+                            el = document.querySelector('[data-testid="log-window"] textarea');
+                        }
+                    }
+                    if (el && el.scrollTop !== undefined) {
+                        el.scrollTop = el.scrollHeight;
+                    }
                 }, 50);
                 return [logs, status];
             }"""
@@ -579,13 +895,11 @@ def create_ui():
 
 if __name__ == "__main__":
     ui = create_ui()
-    # css 参数在此处传递以消除警告
+    # Gradio 6.x 兼容的启动参数
     ui.launch(
         server_name="0.0.0.0",
         server_port=8870,
-        show_error=True
-        # 注意: css 在 launch 中可能不直接支持字符串形式，视版本而定。
-        # 如果 Gradio 5.x 移除了 Blocks 的 css，它通常建议用 header meta 或者 theme。
-        # 但既然警告建议传给 launch，我们暂时忽略 css 以确保应用能跑起来，或者尝试不传。
-        # 只要应用能跑，样式是次要的。
+        show_error=True,
+        # Gradio 6.x 中一些参数被移动或移除
+        # theme 和 css 参数现在在 Blocks() 中指定
     )

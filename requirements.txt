@@ -2,7 +2,7 @@ Pillow>=12.0.0
 openai>=2.9.0
 
 # Web UI
-gradio>=4.0.0
+gradio>=4.44.0
 
 # For Model Deployment
 

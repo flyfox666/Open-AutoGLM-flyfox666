@@ -259,33 +259,43 @@ We provide a feature-rich modern Web interface that makes mobile automation oper
 
 ### Interface Layout
 
-- **Left Control Panel**:
-  - **Device Management**:
-    - Real-time display of all connected devices (USB and Wireless)
-    - Detailed device status information
-    - One-click device status check
+**Professional Three-Column Layout with Clear Functional Zones:**
+
+- **Left Column - Device Management**:
+  - **📱 Device Status**: Real-time display of all connected devices (USB and Wireless)
+  - **🔧 ADB Management**:
+    - **📋 ADB Device List**: View detailed ADB device connection information
+    - **🔄 Restart ADB Service**: One-click ADB service restart to resolve connection issues
+    - **🔄 Check Device Status**: Quick check of all device connection status
   - **📶 Wireless Debugging** (Expanded by default):
     - Connect wireless devices via IP address
     - One-click USB to wireless debugging mode conversion
     - Automatic device IP address detection
     - Support for disconnecting wireless devices
-  - **Command Control**:
-    - Large multi-line input box
-    - Execute/Stop button control
-  - **⚙️ Parameter Configuration** (Expanded by default):
+
+- **Middle Column - Command Execution**:
+  - **🎯 Task Status**: Display current execution status
+  - **Input Command**: Large multi-line input box supporting complex commands
+  - **Execution Control**: Execute/Stop buttons
+  - **💡 Command Examples**: Collapsible example list
+
+- **Right Column - Configuration & Tools**:
+  - **⚙️ Parameter Configuration**:
     - Zhipu AI service configuration
     - Custom model service configuration
-  - **📱 Utilities** (Expanded by default):
-    - View installed third-party application list
+    - Device selection and refresh
+  - **📱 Utilities**:
+    - 🖥️ Screen Mirroring (One-click scrcpy launch)
+    - 📲 Third-party Application List (Collapsible)
 
-- **Right Log Window**:
-  - **Real-time Terminal Sync**: Fully synchronized with backend terminal output
-  - **Smart Auto-scroll**: JavaScript-based forced auto-scrolling
-  - **Convenient Operations**: Copy logs, clear logs buttons
+- **Bottom - Log Area**:
+  - **📋 Real-time Logs**: Wide-screen log display with auto-scroll
+  - **Quick Actions**: Copy, clear log buttons
 
 ### Core Features
 - **📶 Wireless Debugging Support** - Break free from USB cables, control devices via WiFi
 - **📱 Smart Device Management** - Automatically identify USB and wireless devices with clear connection status
+- **🔧 ADB Management Tools** - Built-in ADB device list viewer and service restart functions for quick troubleshooting
 - **🔄 One-Click Mode Switching** - USB devices can quickly convert to wireless debugging mode
 - **⚙️ Out-of-the-box Configuration** - Default expanded configuration panels reduce operation layers
 - **💬 Immersive Log Experience** - Terminal-grade log window with auto-scroll and one-click copy
@@ -316,6 +326,8 @@ Open-AutoGLM provides powerful wireless debugging capabilities, freeing you from
 
 4. **Manage Devices**
    - Click "🔄 Check Device Status" to view all connected devices
+   - Click "📋 ADB Device List" to get detailed device connection information
+   - Click "🔄 Restart ADB Service" to resolve ADB connection issues
    - System will show device type: 🔌 USB or 📶 Wireless
    - Click "✂️ Disconnect Wireless Device" to disconnect wireless connection
 
@@ -327,6 +339,13 @@ adb connect 192.168.1.100:5555
 
 # Verify connection
 adb devices
+
+# View device list
+adb devices
+
+# Restart ADB service
+adb kill-server
+adb start-server
 
 # Execute task on specific device
 python main.py --device-id 192.168.1.100:5555 --base-url http://localhost:8000/v1 "Open TikTok"
