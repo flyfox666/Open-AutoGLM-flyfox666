@@ -110,16 +110,164 @@ runner = CommandRunner()
 # --- 辅助函数 ---
 
 def get_adb_devices():
+    """获取所有已连接的设备（包括USB和无线）"""
     try:
-        result = subprocess.run(["adb", "devices"], capture_output=True, text=True)
+        result = subprocess.run(["adb", "devices"], capture_output=True, text=True, encoding='utf-8', errors='ignore')
         devices = []
+        device_details = []
+
         if result.returncode == 0:
-            for line in result.stdout.split('\n')[1:]:
+            lines = result.stdout.split('\n')[1:]  # 跳过标题行
+            for line in lines:
                 if '\tdevice' in line:
-                    devices.append(line.split('\t')[0])
-        return devices if devices else ["未找到设备"]
-    except:
-        return ["ADB未安装"]
+                    device_id = line.split('\t')[0]
+                    devices.append(device_id)
+                    # 判断是USB还是无线连接
+                    if ':' in device_id:
+                        # 无线设备（IP:端口格式）
+                        device_type = "📶 无线"
+                    else:
+                        # USB设备
+                        device_type = "🔌 USB"
+                    device_details.append(f"{device_type}: {device_id}")
+
+        if not device_details:
+            return ["未找到设备"], ""
+
+        # 格式化设备列表
+        device_list = "\n".join(device_details)
+        all_devices = ", ".join(devices)
+
+        return devices, f"已连接设备 ({len(devices)}个):\n\n{device_list}\n\n默认设备: {devices[0]}"
+    except Exception as e:
+        return [f"错误: {str(e)}"], f"获取设备列表失败: {str(e)}"
+
+def connect_wireless_device(ip_address, port="5555"):
+    """连接无线设备"""
+    try:
+        # 验证IP地址格式
+        parts = ip_address.strip().split('.')
+        if len(parts) != 4 or not all(0 <= int(p) <= 255 for p in parts if p.isdigit()):
+            return False, "无效的IP地址格式"
+
+        # 构造连接地址
+        connect_addr = f"{ip_address}:{port}"
+
+        # 执行连接命令
+        result = subprocess.run(
+            ["adb", "connect", connect_addr],
+            capture_output=True,
+            text=True,
+            encoding='utf-8',
+            errors='ignore',
+            timeout=10
+        )
+
+        if result.returncode == 0:
+            # 验证是否真正连接成功
+            devices_result = subprocess.run(
+                ["adb", "devices"],
+                capture_output=True,
+                text=True,
+                encoding='utf-8',
+                errors='ignore'
+            )
+
+            if connect_addr in devices_result.stdout and "device" in devices_result.stdout:
+                return True, f"成功连接到无线设备: {connect_addr}"
+            else:
+                return False, f"连接失败，请检查:\n1. 手机是否开启无线调试\n2. IP地址是否正确\n3. 手机和电脑是否在同一网络"
+        else:
+            error_msg = result.stderr.strip() if result.stderr else result.stdout.strip()
+            return False, f"连接失败: {error_msg}"
+
+    except subprocess.TimeoutExpired:
+        return False, "连接超时，请检查网络连接"
+    except Exception as e:
+        return False, f"连接出错: {str(e)}"
+
+def disconnect_wireless_device(device_id):
+    """断开无线设备"""
+    try:
+        # 如果设备ID包含端口，直接使用；否则尝试断开所有无线连接
+        if ':' in device_id:
+            # 断开特定设备
+            result = subprocess.run(
+                ["adb", "disconnect", device_id],
+                capture_output=True,
+                text=True,
+                encoding='utf-8',
+                errors='ignore'
+            )
+        else:
+            # 断开所有无线连接
+            result = subprocess.run(
+                ["adb", "disconnect"],
+                capture_output=True,
+                text=True,
+                encoding='utf-8',
+                errors='ignore'
+            )
+
+        if result.returncode == 0:
+            return True, "已断开无线设备连接"
+        else:
+            return False, "断开连接失败"
+
+    except Exception as e:
+        return False, f"断开连接出错: {str(e)}"
+
+def enable_tcpip(device_id, port="5555"):
+    """在USB连接的设备上启用TCP/IP模式（用于无线调试）"""
+    try:
+        # 确保设备是USB连接且在线
+        devices_result = subprocess.run(
+            ["adb", "devices"],
+            capture_output=True,
+            text=True,
+            encoding='utf-8',
+            errors='ignore'
+        )
+
+        if device_id not in devices_result.stdout:
+            return False, f"设备 {device_id} 未连接"
+
+        # 启用TCP/IP
+        result = subprocess.run(
+            ["adb", "-t", "tcpip", str(port)],
+            capture_output=True,
+            text=True,
+            encoding='utf-8',
+            errors='ignore',
+            timeout=10
+        )
+
+        if result.returncode == 0:
+            # 尝试获取设备IP
+            ip_result = subprocess.run(
+                ["adb", "shell", "ip", "route", "get", "8.8.8.8"],
+                capture_output=True,
+                text=True,
+                encoding='utf-8',
+                errors='ignore'
+            )
+
+            device_ip = "未知"
+            if ip_result.returncode == 0:
+                for line in ip_result.stdout.split('\n'):
+                    if "src" in line:
+                        parts = line.split()
+                        for i, part in enumerate(parts):
+                            if part == "src" and i + 1 < len(parts):
+                                device_ip = parts[i + 1]
+                                break
+
+            return True, f"TCP/IP已启用在端口 {port}\n设备IP地址: {device_ip}\n现在可以使用无线连接了"
+        else:
+            return False, f"启用TCP/IP失败: {result.stderr}"
+
+    except Exception as e:
+        return False, f"启用TCP/IP出错: {str(e)}"
 
 def get_available_apps():
     try:
@@ -151,10 +299,48 @@ def create_ui():
                 
                 # 状态与控制
                 with gr.Group():
-                    with gr.Row():
-                        task_status = gr.Textbox(label="任务状态", value="⚪ 就绪", interactive=False, scale=2)
-                        device_status = gr.Textbox(label="设备状态 (点击检查)", value="❓ 未检查", interactive=False, scale=3, lines=3)
-                        check_status_btn = gr.Button("🔄 检查", scale=1, size="sm")
+                    # 设备状态显示
+                    device_status = gr.Textbox(
+                        label="设备状态",
+                        value="❓ 未检查",
+                        interactive=False,
+                        lines=5
+                    )
+                    check_status_btn = gr.Button("🔄 检查设备状态", size="sm")
+
+                    # 无线调试部分
+                    with gr.Accordion("📶 无线调试", open=True):
+                        gr.Markdown("### 连接无线设备")
+
+                        with gr.Row():
+                            wireless_ip = gr.Textbox(
+                                label="设备IP地址",
+                                placeholder="例如: 192.168.1.100",
+                                scale=3
+                            )
+                            wireless_port = gr.Textbox(
+                                label="端口",
+                                value="5555",
+                                scale=1
+                            )
+
+                        with gr.Row():
+                            connect_wireless_btn = gr.Button("🔗 连接无线设备", variant="primary")
+                            disconnect_wireless_btn = gr.Button("✂️ 断开无线设备")
+
+                        # USB转无线
+                        gr.Markdown("### USB设备转无线调试")
+                        enable_tcpip_btn = gr.Button("📡 启用TCP/IP模式（USB转无线）")
+
+                        # 连接状态
+                        wireless_status = gr.Textbox(
+                            label="无线调试状态",
+                            value="未连接",
+                            interactive=False,
+                            lines=2
+                        )
+
+                    task_status = gr.Textbox(label="任务状态", value="⚪ 就绪", interactive=False)
                     
                     user_input = gr.Textbox(
                         label="输入指令", 
@@ -206,8 +392,10 @@ def create_ui():
         
         # 刷新设备
         def refresh_devices():
-            devs = get_adb_devices()
-            return gr.Dropdown(choices=devs, value=devs[0] if devs else None)
+            devices, _ = get_adb_devices()
+            # 确保设备列表不包含错误信息
+            valid_devices = [d for d in devices if not d.startswith("错误") and d != "未找到设备"]
+            return gr.Dropdown(choices=valid_devices, value=valid_devices[0] if valid_devices else None)
         
         refresh_dev_btn.click(refresh_devices, outputs=device_dd)
         demo.load(refresh_devices, outputs=device_dd)
@@ -279,19 +467,79 @@ def create_ui():
         # 检查状态
         def check_status_handler():
             try:
-                # 获取详细信息
-                res = subprocess.run(["adb", "devices", "-l"], capture_output=True, text=True)
-                if res.returncode == 0:
-                    output = res.stdout.strip()
-                    # 简单美化
-                    if "device" not in output: 
-                        return "❌ 未发现设备"
-                    return f"✅ ADB正常\n{output}"
-                return "❌ ADB 执行失败"
+                # 使用新的设备获取函数
+                devices, device_info = get_adb_devices()
+                if device_info:
+                    return device_info
+                else:
+                    return "❌ 未发现设备"
             except Exception as e:
                 return f"❌ 错误: {e}"
 
         check_status_btn.click(check_status_handler, outputs=device_status)
+
+        # 无线调试 - 连接设备
+        def handle_connect_wireless(ip, port):
+            success, message = connect_wireless_device(ip, port)
+            if success:
+                # 连接成功后刷新设备状态
+                devices, device_info = get_adb_devices()
+                return device_info, f"✅ {message}"
+            else:
+                return "", f"❌ {message}"
+
+        connect_wireless_btn.click(
+            handle_connect_wireless,
+            inputs=[wireless_ip, wireless_port],
+            outputs=[device_status, wireless_status]
+        )
+
+        # 无线调试 - 断开设备
+        def handle_disconnect_wireless():
+            # 获取当前无线设备列表
+            devices, _ = get_adb_devices()
+            wireless_devices = [d for d in devices if ':' in d]
+
+            if wireless_devices:
+                # 断开所有无线设备
+                success, message = disconnect_wireless_device("")
+                # 刷新设备状态
+                devices, device_info = get_adb_devices()
+                return device_info, f"✅ 已断开所有无线设备" if success else f"❌ {message}"
+            else:
+                return "", "ℹ️ 没有连接的无线设备"
+
+        disconnect_wireless_btn.click(
+            handle_disconnect_wireless,
+            outputs=[device_status, wireless_status]
+        )
+
+        # USB转无线 - 启用TCP/IP
+        def handle_enable_tcpip():
+            try:
+                # 获取当前USB设备
+                devices, _ = get_adb_devices()
+                usb_devices = [d for d in devices if ':' not in d and d != "未找到设备" and not d.startswith("错误")]
+
+                if not usb_devices:
+                    return "", "❌ 没有找到USB连接的设备"
+
+                # 使用第一个USB设备
+                usb_device = usb_devices[0]
+                success, message = enable_tcpip(usb_device)
+
+                if success:
+                    return f"✅ {message}", "✅ TCP/IP已启用，现在可以无线连接了"
+                else:
+                    return "", f"❌ {message}"
+
+            except Exception as e:
+                return "", f"❌ 启用TCP/IP失败: {str(e)}"
+
+        enable_tcpip_btn.click(
+            handle_enable_tcpip,
+            outputs=[device_status, wireless_status]
+        )
 
         # 复制日志 (JS实现)
         copy_log_btn.click(
@@ -333,8 +581,8 @@ if __name__ == "__main__":
     ui = create_ui()
     # css 参数在此处传递以消除警告
     ui.launch(
-        server_name="0.0.0.0", 
-        server_port=8865, 
+        server_name="0.0.0.0",
+        server_port=8870,
         show_error=True
         # 注意: css 在 launch 中可能不直接支持字符串形式，视版本而定。
         # 如果 Gradio 5.x 移除了 Blocks 的 css，它通常建议用 header meta 或者 theme。

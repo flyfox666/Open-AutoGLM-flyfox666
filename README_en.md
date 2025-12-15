@@ -9,6 +9,8 @@
     👋 Join our <a href="resources/WECHAT.md" target="_blank">WeChat</a> or <a href="https://discord.gg/QR7SARHRxK" target="_blank">Discord</a> communities
 </p>
 
+**Enhanced version** of [Open-AutoGLM](https://github.com/zai-org/Open-AutoGLM) with integrated modern Web UI and wireless debugging features.
+
 ## Quick Start
 
 You can use Claude Code with [GLM Coding Plan](https://z.ai/subscribe) and enter the following prompt to quickly deploy this project:
@@ -253,49 +255,81 @@ print(result)
 
 ## 🖥️ Web UI Features
 
-Our Web Interface offers rich functionality to make operations easier:
+We provide a feature-rich modern Web interface that makes mobile automation operations more convenient:
 
-### Interface Layout and Features
+### Interface Layout
 
 - **Left Control Panel**:
-  - **Status**: Independent "Task Status" (System) and "Device Status" (Manual Check) with detailed connection info.
-  - **Command Input**: Large input box supporting multi-line input, equipped with "Execute" and "Stop" buttons.
-  - **Configuration**: Expanded by default, supporting quick switching between Zhipu AI and custom model services.
-  - **Utilities**: Expanded by default, offering convenient functions like viewing third-party app lists.
+  - **Device Management**:
+    - Real-time display of all connected devices (USB and Wireless)
+    - Detailed device status information
+    - One-click device status check
+  - **📶 Wireless Debugging** (Expanded by default):
+    - Connect wireless devices via IP address
+    - One-click USB to wireless debugging mode conversion
+    - Automatic device IP address detection
+    - Support for disconnecting wireless devices
+  - **Command Control**:
+    - Large multi-line input box
+    - Execute/Stop button control
+  - **⚙️ Parameter Configuration** (Expanded by default):
+    - Zhipu AI service configuration
+    - Custom model service configuration
+  - **📱 Utilities** (Expanded by default):
+    - View installed third-party application list
 
 - **Right Log Window**:
-  - **Real-time Terminal Sync**: Fully synchronized with backend terminal output in an immersive black background.
-  - **Smart Auto-scroll**: JS-based forced auto-scrolling ensures you always see the latest logs.
-  - **Convenient Operations**: "Copy Logs" (one-click copy to clipboard) and "Clear Logs" buttons at the bottom.
-  - **Adaptive Height**: Optimized height design ensures all controls are visible in full screen.
+  - **Real-time Terminal Sync**: Fully synchronized with backend terminal output
+  - **Smart Auto-scroll**: JavaScript-based forced auto-scrolling
+  - **Convenient Operations**: Copy logs, clear logs buttons
 
 ### Core Features
-- **📱 Dual Status Monitoring** - Separated task execution and device connection status for clearer information.
-- **⚙️ Out-of-the-box Configuration** - Default expanded configuration panels reduce click depth.
-- **💬 Immersive Log Experience** - Terminal-grade log window with one-click copy and auto-scroll.
-- **🔄 Robust Backend Interaction** - Uses polling mechanism for better stability compared to WebSocket, supporting real-time task stopping.
+- **📶 Wireless Debugging Support** - Break free from USB cables, control devices via WiFi
+- **📱 Smart Device Management** - Automatically identify USB and wireless devices with clear connection status
+- **🔄 One-Click Mode Switching** - USB devices can quickly convert to wireless debugging mode
+- **⚙️ Out-of-the-box Configuration** - Default expanded configuration panels reduce operation layers
+- **💬 Immersive Log Experience** - Terminal-grade log window with auto-scroll and one-click copy
+- **🛡️ Automatic Port Cleanup** - Automatically clear occupied ports on startup to ensure smooth service
 
-## Remote Debugging
+## 📶 Wireless Debugging Feature
 
-Phone Agent supports remote ADB debugging via WiFi/network, allowing device control without a USB connection.
+Open-AutoGLM provides powerful wireless debugging capabilities, freeing you from USB cable constraints:
 
-### Configure Remote Debugging
+### Wireless Debugging in Web UI (Recommended)
 
-#### Enable Wireless Debugging on Phone
+1. **Prepare Device**
+   - Ensure phone and computer are on the same WiFi network
+   - On phone: Settings → Developer Options → Wireless Debugging (Enable)
 
-Ensure the phone and computer are on the same WiFi network, as shown below:
+2. **Connect Wireless Device**
+   - Open Web UI (http://localhost:8865)
+   - Find "📶 Wireless Debugging" section in the left panel (expanded by default)
+   - Enter the phone's IP address (visible in phone's wireless debugging settings)
+   - Port defaults to 5555, usually no need to modify
+   - Click "🔗 Connect Wireless Device" button
 
-![Enable Wireless Debugging](resources/screenshot-20251210-120630.png)
+3. **USB to Wireless**
+   - If your device is USB connected:
+   - Click "📡 Enable TCP/IP Mode (USB to Wireless)"
+   - System will automatically get device IP and enable wireless mode
+   - Disconnect USB cable and use wireless connection
 
-#### Use Standard ADB Commands on Computer
+4. **Manage Devices**
+   - Click "🔄 Check Device Status" to view all connected devices
+   - System will show device type: 🔌 USB or 📶 Wireless
+   - Click "✂️ Disconnect Wireless Device" to disconnect wireless connection
+
+### Command Line Method
 
 ```bash
-# Connect via WiFi, replace with the IP address and port shown on your phone
+# Connect via WiFi
 adb connect 192.168.1.100:5555
 
 # Verify connection
 adb devices
-# Should show: 192.168.1.100:5555    device
+
+# Execute task on specific device
+python main.py --device-id 192.168.1.100:5555 --base-url http://localhost:8000/v1 "Open TikTok"
 ```
 
 ### Device Management Commands
