@@ -35,6 +35,22 @@ python start_web_ui.py
 # 3. Access http://localhost:8865
 ```
 
+### Method 2: Command Line / Code Native
+
+```bash
+# Interactive mode (Local Deployment)
+python main.py --base-url http://localhost:8000/v1 --model "autoglm-phone-9b"
+
+# Single execution (Local Deployment)
+python main.py --base-url http://localhost:8000/v1 "Open Meituan and search for nearby hotpot restaurants"
+
+# Using Zhipu BigModel
+python main.py --base-url https://open.bigmodel.cn/api/paas/v4 --model "autoglm-phone" --apikey "your-bigmodel-api-key" "Open Meituan and search for nearby hotpot restaurants"
+
+# Using ModelScope
+python main.py --base-url https://api-inference.modelscope.cn/v1 --model "ZhipuAI/AutoGLM-Phone-9B" --apikey "your-modelscope-api-key" "Open Meituan and search for nearby hotpot restaurants"
+```
+
 ## Project Introduction
 
 Phone Agent is a mobile intelligent assistant framework built on AutoGLM. It understands phone screen content in a multimodal manner and helps users complete tasks through automated operations. The system controls devices via ADB (Android Debug Bridge), perceives screens using vision-language models, and generates and executes operation workflows through intelligent planning. Users simply describe their needs in natural language, such as "Open eBay and search for wireless earphones." and Phone Agent will automatically parse the intent, understand the current interface, plan the next action, and complete the entire workflow. The system also includes a sensitive operation confirmation mechanism and supports manual takeover during login or verification code scenarios. Additionally, it provides remote ADB debugging capabilities, allowing device connection via WiFi or network for flexible remote control and development.
@@ -293,7 +309,7 @@ Open-AutoGLM provides powerful wireless debugging capabilities, freeing you from
    - Open Web UI (http://localhost:8865)
    - Find "📶 Wireless Debugging" section in the left panel (expanded by default)
    - Enter the phone's IP address (visible in phone's wireless debugging settings)
-   - Port defaults to 5555, usually no need to modify
+   - Port defaults to 5555, modify as your phone settings
    - Click "🔗 Connect Wireless Device" button
 
 3. **USB to Wireless**
