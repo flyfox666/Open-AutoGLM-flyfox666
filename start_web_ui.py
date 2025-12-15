@@ -56,32 +56,44 @@ def main():
     print("\n正在启动Web界面...")
     print("正在尝试可用端口...")
 
+    # 强制尝试清理端口 8865
+    target_port = 8865
+    print(f"\n检查端口 {target_port} 占用情况...")
+    try:
+        # Windows下查找占用端口的进程
+        cmd_find = f"netstat -ano | findstr :{target_port}"
+        result = subprocess.run(cmd_find, shell=True, capture_output=True, text=True)
+        
+        if result.stdout:
+            lines = result.stdout.strip().split('\n')
+            for line in lines:
+                parts = line.split()
+                if len(parts) >= 5:
+                    pid = parts[-1]
+                    try:
+                        # 排除自身进程
+                        if int(pid) != os.getpid():
+                            print(f"发现占用端口 {target_port} 的进程 PID: {pid}，正在尝试终止...")
+                            subprocess.run(f"taskkill /F /PID {pid}", shell=True, capture_output=True)
+                            print(f"进程 {pid} 已终止")
+                    except ValueError:
+                        pass
+    except Exception as e:
+        print(f"清理端口时出错: {e}")
+
     try:
         from app import create_ui
         demo = create_ui()
-        # 尝试多个端口
-        ports = [8865, 8861, 8862, 8960]
-        for port in ports:
-            try:
-                print(f"访问地址: http://localhost:{port}")
-                demo.launch(
-                    server_name="0.0.0.0",
-                    server_port=port,
-                    share=False,
-                    inbrowser=True,
-                    show_error=True,
-                    quiet=False
-                )
-                break
-            except Exception as e:
-                if f"Port {port}" in str(e) or "already in use" in str(e):
-                    print(f"端口 {port} 被占用，尝试下一个...")
-                    continue
-                else:
-                    raise
-        else:
-            print("ERROR - 所有端口都被占用，请手动关闭其他程序或指定其他端口")
-            sys.exit(1)
+        
+        print(f"访问地址: http://localhost:{target_port}")
+        demo.launch(
+            server_name="0.0.0.0",
+            server_port=target_port,
+            share=False,
+            inbrowser=True,
+            show_error=True,
+            quiet=False
+        )
     except Exception as e:
         print(f"ERROR - 启动失败: {e}")
         print("请确保已安装所有依赖：pip install -r requirements.txt")

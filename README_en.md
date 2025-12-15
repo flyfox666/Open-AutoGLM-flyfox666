@@ -22,29 +22,17 @@ https://raw.githubusercontent.com/zai-org/Open-AutoGLM/refs/heads/main/README_en
 
 ### Method 1: Web Interface (Recommended)
 
-We provide a modern Web interface for easier operation:
+We provide a modern Web interface for easier operation (integrated scrcpy launcher):
 
 ```bash
 # 1. Install dependencies
 pip install -r requirements.txt
 pip install -e .
 
-# 2. Start Web UI
+# 2. Start Web UI (auto-kills occupied port)
 python start_web_ui.py
 
 # 3. Access http://localhost:8865
-```
-
-### Method 2: Combined Launch (Web UI + scrcpy)
-
-Use our one-click script to start both the Web interface and screen mirroring:
-
-```bash
-# Windows Users
-Double-click start_all.bat
-
-# Or use Python script
-python start_all.py
 ```
 
 ## Project Introduction
@@ -259,38 +247,28 @@ We provide a feature-rich modern Web interface that makes mobile automation oper
 
 ### Interface Layout
 
-**Professional Three-Column Layout with Clear Functional Zones:**
+**Modern Two-Column Layout, Control vs. Interaction:**
 
-- **Left Column - Device Management**:
-  - **📱 Device Status**: Real-time display of all connected devices (USB and Wireless)
-  - **🔧 ADB Management**:
-    - **📋 ADB Device List**: View detailed ADB device connection information
-    - **🔄 Restart ADB Service**: One-click ADB service restart to resolve connection issues
-    - **🔄 Check Device Status**: Quick check of all device connection status
-  - **📶 Wireless Debugging** (Expanded by default):
-    - Connect wireless devices via IP address
-    - One-click USB to wireless debugging mode conversion
-    - Automatic device IP address detection
-    - Support for disconnecting wireless devices
+- **Left Column - Smart Control Center**:
+  - **📱 Device Management**:
+    - **Status Overview**: Real-time display of USB/Wireless status
+    - **ADB Toolkit**: Built-in connection check, service restart, list devices
+    - **📶 Wireless Debugging**: Support IP connection and USB-to-Wireless mode
+  - **⚙️ Configuration**:
+    - Integrated Zhipu AI and custom model settings
+    - Quick switch for active device
+  - **🛠 Utilities**:
+    - **🖥️ Screen Mirroring**: One-click scrcpy launch
+    - **📲 App List**: Auto-scan third-party apps
 
-- **Middle Column - Command Execution**:
-  - **🎯 Task Status**: Display current execution status
-  - **Input Command**: Large multi-line input box supporting complex commands
-  - **Execution Control**: Execute/Stop buttons
-  - **💡 Command Examples**: Collapsible example list
-
-- **Right Column - Configuration & Tools**:
-  - **⚙️ Parameter Configuration**:
-    - Zhipu AI service configuration
-    - Custom model service configuration
-    - Device selection and refresh
-  - **📱 Utilities**:
-    - 🖥️ Screen Mirroring (One-click scrcpy launch)
-    - 📲 Third-party Application List (Collapsible)
-
-- **Bottom - Log Area**:
-  - **📋 Real-time Logs**: Wide-screen log display with auto-scroll
-  - **Quick Actions**: Copy, clear log buttons
+- **Right Column - Interaction & Monitoring**:
+  - **📋 Real-time Terminal** (Top):
+    - Widescreen log display
+    - One-click copy and clear logs
+  - **🎯 Task Execution** (Bottom):
+    - **Natural Language Input**: Support complex multi-line commands
+    - **Task Status**: Real-time feedback on execution stage
+    - **💡 Quick Commands**: Built-in common operation examples
 
 ### Core Features
 - **📶 Wireless Debugging Support** - Break free from USB cables, control devices via WiFi

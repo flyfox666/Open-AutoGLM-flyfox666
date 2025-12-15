@@ -458,82 +458,112 @@ def create_ui():
         gr.Markdown("## 🤖 Open-AutoGLM 控制台")
 
         with gr.Row():
-            # 左列：设备状态和无线调试
+            # --- 左列：设备管理、配置与工具 ---
             with gr.Column(scale=1, min_width=300):
+                
+                # 1. 设备管理
                 with gr.Group():
                     gr.Markdown("### 📱 设备管理")
-
-                    # 设备状态显示
+                    
                     device_status = gr.Textbox(
                         label="设备状态",
                         value="❓ 未检查",
                         interactive=False,
-                        lines=6
+                        lines=4
                     )
-                    # 设备管理按钮行
                     with gr.Row():
-                        check_status_btn = gr.Button("🔄 检查设备状态", size="sm")
-                        adb_devices_btn = gr.Button("📋 ADB设备列表", size="sm")
-                        restart_adb_btn = gr.Button("🔄 重启ADB服务", size="sm")
+                        check_status_btn = gr.Button("🔄 检查", size="sm")
+                        adb_devices_btn = gr.Button("📋 列表", size="sm")
+                        restart_adb_btn = gr.Button("🔄 重启ADB", size="sm")
 
-                    # 无线调试部分
                     with gr.Accordion("📶 无线调试", open=True):
-                        gr.Markdown("### 连接无线设备")
-
+                        gr.Markdown("#### 连接无线设备")
                         with gr.Row():
-                            wireless_ip = gr.Textbox(
-                                label="设备IP地址",
-                                placeholder="例如: 192.168.1.100",
-                                scale=3
-                            )
-                            wireless_port = gr.Textbox(
-                                label="端口",
-                                value="5555",
-                                scale=1
-                            )
-
+                            wireless_ip = gr.Textbox(label="IP", placeholder="192.168.1.x", scale=3)
+                            wireless_port = gr.Textbox(label="端口", value="5555", scale=1)
+                        
                         with gr.Row():
-                            connect_wireless_btn = gr.Button("🔗 连接无线设备", variant="primary")
-                            disconnect_wireless_btn = gr.Button("✂️ 断开无线设备")
+                            connect_wireless_btn = gr.Button("🔗 连接", variant="primary", size="sm")
+                            disconnect_wireless_btn = gr.Button("✂️ 断开", size="sm")
 
-                        # USB转无线
-                        gr.Markdown("### USB转无线")
-                        enable_tcpip_btn = gr.Button("📡 启用TCP/IP模式")
+                        gr.Markdown("#### USB转无线")
+                        enable_tcpip_btn = gr.Button("📡 启用TCP/IP模式", size="sm")
+                        
+                        wireless_status = gr.Textbox(label="状态", interactive=False, lines=2)
 
-                        # 连接状态
-                        wireless_status = gr.Textbox(
-                            label="无线调试状态",
-                            value="未连接",
-                            interactive=False,
-                            lines=2
-                        )
+                # 2. 参数配置
+                with gr.Group():
+                    gr.Markdown("### ⚙️ 参数配置")
+                    with gr.Tabs():
+                        with gr.TabItem("智谱AI"):
+                            api_key = gr.Textbox(label="API Key", type="password", value=os.environ.get("PHONE_AGENT_API_KEY", ""))
+                            model_name = gr.Textbox(label="Model", value="autoglm-phone", visible=False)
+                            base_url = gr.Textbox(label="Base URL", value="https://open.bigmodel.cn/api/paas/v4", visible=False)
+                        
+                        with gr.TabItem("自定义"):
+                            custom_base_url = gr.Textbox(label="Base URL", value="http://localhost:8000/v1")
+                            custom_model = gr.Textbox(label="Model", value="autoglm-phone-9b")
+                            custom_api_key = gr.Textbox(label="API Key", type="password")
+                    
+                    with gr.Row():
+                        device_dd = gr.Dropdown(label="当前设备", choices=[], value=None, scale=3)
+                        refresh_dev_btn = gr.Button("🔄", scale=1)
 
-            # 中列：命令输入和执行控制
-            with gr.Column(scale=2, min_width=350):
+                # 3. 实用工具
+                with gr.Group():
+                    gr.Markdown("### 🛠 实用工具")
+                    scrcpy_btn = gr.Button("🖥️ 启动屏幕镜像", variant="secondary")
+                    scrcpy_status = gr.Textbox(label="状态", interactive=False, lines=1)
+                    
+                    with gr.Accordion("📲 第三方应用列表", open=False):
+                        list_apps_btn = gr.Button("获取应用列表", size="sm")
+                        app_list_output = gr.Textbox(label="应用列表", lines=5, interactive=False)
+
+            # --- 右列：日志与命令 ---
+            with gr.Column(scale=2, min_width=450):
+                
+                # 1. 实时日志 (Top)
+                with gr.Group():
+                    gr.Markdown("### 📋 实时日志")
+                    log_output = gr.Textbox(
+                        label="终端实时日志",
+                        value="",
+                        lines=20,
+                        max_lines=30,
+                        interactive=False,
+                        elem_id="log-window"
+                    )
+                    with gr.Row():
+                        copy_log_btn = gr.Button("📋 复制日志", size="sm")
+                        clear_log_btn = gr.Button("🗑 清空日志", size="sm")
+                    gr.HTML("""
+                    <div style='margin-top: 10px; font-size: 0.8em; color: #888;'>
+                    💡 日志会自动滚动到最新位置
+                    </div>
+                    """)
+
+                # 2. 命令执行 (Bottom)
                 with gr.Group():
                     gr.Markdown("### 🎯 命令执行")
-
+                    
                     task_status = gr.Textbox(
                         label="任务状态",
                         value="⚪ 就绪",
                         interactive=False,
-                        lines=2
+                        lines=1
                     )
-
+                    
                     user_input = gr.Textbox(
                         label="输入指令",
-                        placeholder="例如：打开微信给文件传输助手发你好",
-                        lines=6,
-                        max_lines=10
+                        placeholder="例如：打开微信给文件传输助手发你好...",
+                        lines=4
                     )
-
+                    
                     with gr.Row():
-                        submit_btn = gr.Button("▶ 执行", variant="primary", scale=2)
-                        stop_btn = gr.Button("⏹ 停止", variant="stop", scale=1)
+                        submit_btn = gr.Button("▶ 执行任务", variant="primary", scale=2)
+                        stop_btn = gr.Button("⏹ 停止任务", variant="stop", scale=1)
 
-                    gr.Markdown("---")
-                    gr.Markdown("### 💡 命令示例")
-                    with gr.Accordion("点击查看示例", open=False):
+                    with gr.Accordion("💡 命令示例", open=False):
                         gr.Markdown("""
                         - 打开美团搜索附近的火锅店
                         - 发送微信消息给张三
@@ -541,77 +571,6 @@ def create_ui():
                         - 设置明天早上8点的闹钟
                         - 拍照并发送给联系人
                         """)
-
-            # 右列：参数配置和实用工具
-            with gr.Column(scale=1, min_width=350):
-                with gr.Group():
-                    gr.Markdown("### ⚙️ 参数配置")
-
-                    with gr.Tabs():
-                        with gr.TabItem("智谱AI"):
-                            api_key = gr.Textbox(label="API Key", type="password", value=os.environ.get("PHONE_AGENT_API_KEY", ""))
-                            model_name = gr.Textbox(label="Model", value="autoglm-phone", visible=False)
-                            base_url = gr.Textbox(label="Base URL", value="https://open.bigmodel.cn/api/paas/v4", visible=False)
-
-                        with gr.TabItem("自定义"):
-                            custom_base_url = gr.Textbox(label="Base URL", value="http://localhost:8000/v1")
-                            custom_model = gr.Textbox(label="Model", value="autoglm-phone-9b")
-                            custom_api_key = gr.Textbox(label="API Key", type="password")
-
-                    device_dd = gr.Dropdown(label="设备", choices=[], value=None)
-                    refresh_dev_btn = gr.Button("刷新设备列表", size="sm")
-
-                with gr.Group():
-                    gr.Markdown("### 📱 实用工具")
-
-                    # 屏幕镜像按钮
-                    scrcpy_btn = gr.Button("🖥️ 启动屏幕镜像", variant="primary")
-
-                    # scrcpy 状态显示
-                    scrcpy_status = gr.Textbox(
-                        label="屏幕镜像状态",
-                        value="未启动",
-                        interactive=False,
-                        lines=2
-                    )
-
-                    # 可折叠的应用列表
-                    with gr.Accordion("📲 第三方应用列表", open=False):
-                        list_apps_btn = gr.Button("获取应用列表", variant="secondary", size="sm")
-                        app_list_output = gr.Textbox(
-                            label="应用列表",
-                            lines=8,
-                            max_lines=15,
-                            interactive=False
-                        )
-
-        # 底部：日志区域
-        gr.Markdown("---")
-        gr.Markdown("### 📋 实时日志")
-
-        with gr.Row():
-            # 日志主体
-            with gr.Column(scale=5):
-                log_output = gr.Textbox(
-                    label="终端实时日志",
-                    value="",
-                    lines=20,
-                    max_lines=30,
-                    interactive=False,
-                    elem_id="log-window"
-                )
-
-            # 日志控制按钮
-            with gr.Column(scale=1):
-                with gr.Row():
-                    copy_log_btn = gr.Button("📋 复制", size="sm")
-                with gr.Row():
-                    clear_log_btn = gr.Button("🗑 清空", size="sm")
-                gr.HTML("""
-                <div style='margin-top: 10px; font-size: 0.8em; color: #888;'>
-                💡 日志会自动滚动到最新位置
-                </div>
-                """)
 
         # --- 逻辑绑定 ---
         
