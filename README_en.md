@@ -22,6 +22,9 @@ https://raw.githubusercontent.com/zai-org/Open-AutoGLM/refs/heads/main/README_en
 
 ### Method 1: Web Interface (Recommended)
 
+![Uploading AutoGLM-Web-Controller-12-16-2025_12_35_AM.png…]()
+
+
 We provide a modern Web interface for easier operation (integrated scrcpy launcher):
 
 ```bash
