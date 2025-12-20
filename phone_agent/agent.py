@@ -6,11 +6,12 @@ from dataclasses import dataclass
 from typing import Any, Callable
 
 from phone_agent.actions import ActionHandler
-from phone_agent.actions.handler import do, finish, parse_action
+from phone_agent.actions.handler import do, finish, info, parse_action
 from phone_agent.adb import get_current_app, get_screenshot
 from phone_agent.config import get_messages, get_system_prompt
 from phone_agent.model import ModelClient, ModelConfig
 from phone_agent.model.client import MessageBuilder
+from phone_agent.trajectory_logger import TrajectoryLogger, get_trajectory_logger
 
 
 @dataclass
@@ -37,6 +38,7 @@ class StepResult:
     action: dict[str, Any] | None
     thinking: str
     message: str | None = None
+    requires_user_input: bool = False  # 是否需要用户回复
 
 
 class PhoneAgent:
@@ -80,6 +82,13 @@ class PhoneAgent:
 
         self._context: list[dict[str, Any]] = []
         self._step_count = 0
+        
+        # 轨迹日志记录器
+        self._trajectory_logger = get_trajectory_logger()
+        
+        # INFO 动作等待用户回复的状态
+        self._pending_info: str | None = None  # 等待回复的问题
+        self._user_reply: str | None = None    # 用户的回复
 
     def run(self, task: str) -> str:
         """
@@ -93,20 +102,45 @@ class PhoneAgent:
         """
         self._context = []
         self._step_count = 0
+        
+        # 开始新的 Session
+        self._trajectory_logger.start_session(
+            task=task,
+            model_name=self.model_config.model_name
+        )
 
         # First step with user prompt
         result = self._execute_step(task, is_first=True)
 
         if result.finished:
+            self._trajectory_logger.end_session(result.message or "Task completed")
             return result.message or "Task completed"
 
         # Continue until finished or max steps reached
         while self._step_count < self.agent_config.max_steps:
             result = self._execute_step(is_first=False)
+            
+            # 如果需要用户回复，暂停并等待
+            if result.requires_user_input:
+                self._pending_info = result.message
+                print(f"\n🛠 EN: Agent asks: {result.message} Please Reply:")
+                print(f"🛠 ZH: Agent 问你: {result.message} 回复一下：")
+                
+                # 在控制台模式下，等待用户输入
+                try:
+                    user_input = input("Your reply: ")
+                    if user_input.strip():
+                        self._user_reply = user_input.strip()
+                        self._pending_info = None
+                except EOFError:
+                    # Web UI 模式下，返回结果让 Web UI 处理
+                    return f"WAITING_FOR_REPLY: {result.message}"
 
             if result.finished:
+                self._trajectory_logger.end_session(result.message or "Task completed")
                 return result.message or "Task completed"
 
+        self._trajectory_logger.end_session("Max steps reached")
         return "Max steps reached"
 
     def step(self, task: str | None = None) -> StepResult:
@@ -132,6 +166,22 @@ class PhoneAgent:
         """Reset the agent state for a new task."""
         self._context = []
         self._step_count = 0
+        self._pending_info = None
+        self._user_reply = None
+        self._trajectory_logger.end_session()
+    
+    def reply(self, text: str) -> None:
+        """提供用户回复，用于响应 INFO 动作。"""
+        self._user_reply = text
+        self._pending_info = None
+    
+    def is_waiting_for_reply(self) -> bool:
+        """检查是否正在等待用户回复。"""
+        return self._pending_info is not None
+    
+    def get_pending_question(self) -> str | None:
+        """获取等待回复的问题。"""
+        return self._pending_info
 
     def _execute_step(
         self, user_prompt: str | None = None, is_first: bool = False
@@ -159,7 +209,13 @@ class PhoneAgent:
             )
         else:
             screen_info = MessageBuilder.build_screen_info(current_app)
-            text_content = f"** Screen Info **\n\n{screen_info}"
+            
+            # 如果有用户回复，注入到上下文中
+            if self._user_reply:
+                text_content = f"** Screen Info **\n\n{screen_info}\n\n** User Reply **\n{self._user_reply}"
+                self._user_reply = None  # 清除回复
+            else:
+                text_content = f"** Screen Info **\n\n{screen_info}"
 
             self._context.append(
                 MessageBuilder.create_user_message(
@@ -233,12 +289,26 @@ class PhoneAgent:
             )
             print("=" * 50 + "\n")
 
+        # 记录轨迹日志
+        action_type = action.get("_metadata", "unknown")
+        if action_type == "unknown":
+            # 尝试从 action 中提取类型
+            action_type = action.get("action", action.get("type", "unknown"))
+        
+        self._trajectory_logger.log_step(
+            screenshot_base64=screenshot.base64_data,
+            thinking=response.thinking,
+            action=action,
+            action_type=action_type
+        )
+
         return StepResult(
             success=result.success,
             finished=finished,
             action=action,
             thinking=response.thinking,
             message=result.message or action.get("message"),
+            requires_user_input=result.requires_user_input,
         )
 
     @property

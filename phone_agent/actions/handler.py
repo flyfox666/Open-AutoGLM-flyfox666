@@ -29,6 +29,7 @@ class ActionResult:
     should_finish: bool
     message: str | None = None
     requires_confirmation: bool = False
+    requires_user_input: bool = False  # 是否需要用户输入回复
 
 
 class ActionHandler:
@@ -73,6 +74,20 @@ class ActionHandler:
                 success=True, should_finish=True, message=action.get("message")
             )
 
+        if action_type == "info":
+            # INFO 动作：向用户提问
+            question = action.get("question") or action.get("text") or action.get("message", "")
+            print(f"\n{'='*50}")
+            print(f"🤔 Agent 询问: {question}")
+            print(f"请在 Web UI 中回复，或在控制台输入后按回车...")
+            print(f"{'='*50}\n")
+            return ActionResult(
+                success=True,
+                should_finish=False,
+                message=question,
+                requires_user_input=True
+            )
+
         if action_type != "do":
             return ActionResult(
                 success=False,
@@ -114,6 +129,7 @@ class ActionHandler:
             "Note": self._handle_note,
             "Call_API": self._handle_call_api,
             "Interact": self._handle_interact,
+            "Info": self._handle_info,  # 向用户提问
         }
         return handlers.get(action_name)
 
@@ -255,6 +271,20 @@ class ActionHandler:
         # This action signals that user input is needed
         return ActionResult(True, False, message="User interaction required")
 
+    def _handle_info(self, action: dict, width: int, height: int) -> ActionResult:
+        """Handle INFO action - ask user for information."""
+        question = action.get("question") or action.get("text") or action.get("message", "")
+        print(f"\n{'='*50}")
+        print(f"🤔 Agent 询问: {question}")
+        print(f"请在 Web UI 中回复，或在控制台输入后按回车...")
+        print(f"{'='*50}\n")
+        return ActionResult(
+            success=True,
+            should_finish=False,
+            message=question,
+            requires_user_input=True
+        )
+
     @staticmethod
     def _default_confirmation(message: str) -> bool:
         """Default confirmation callback using console input."""
@@ -301,6 +331,24 @@ def parse_action(response: str) -> dict[str, Any]:
             except (SyntaxError, ValueError) as e:
                 raise ValueError(f"Failed to parse do() action: {e}")
 
+        elif response.startswith("info"):
+            # Parse info(question="...") action
+            try:
+                tree = ast.parse(response, mode="eval")
+                if not isinstance(tree.body, ast.Call):
+                    raise ValueError("Expected a function call")
+
+                call = tree.body
+                action = {"_metadata": "info"}
+                for keyword in call.keywords:
+                    key = keyword.arg
+                    value = ast.literal_eval(keyword.value)
+                    action[key] = value
+
+                return action
+            except (SyntaxError, ValueError) as e:
+                raise ValueError(f"Failed to parse info() action: {e}")
+
         elif response.startswith("finish"):
             action = {
                 "_metadata": "finish",
@@ -322,4 +370,10 @@ def do(**kwargs) -> dict[str, Any]:
 def finish(**kwargs) -> dict[str, Any]:
     """Helper function for creating 'finish' actions."""
     kwargs["_metadata"] = "finish"
+    return kwargs
+
+
+def info(**kwargs) -> dict[str, Any]:
+    """Helper function for creating 'info' actions (ask user)."""
+    kwargs["_metadata"] = "info"
     return kwargs

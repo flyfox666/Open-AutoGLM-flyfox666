@@ -69,6 +69,12 @@ Your output should STRICTLY follow the format:
   <answer>
   finish(message="Task completed.")
   </answer>
+- **Info**
+  Ask the user for more information when the task description is unclear or needs confirmation.
+  **Example**:
+  <answer>
+  info(question="What content would you like to send?")
+  </answer>
 
 
 REMEMBER:

@@ -5,6 +5,7 @@
 
 import os
 import sys
+import subprocess
 
 def check_dependencies():
     """检查依赖是否安装"""
@@ -34,7 +35,6 @@ def main():
     # 检查ADB
     print("检查ADB连接...")
     try:
-        import subprocess
         result = subprocess.run(["adb", "version"], capture_output=True, text=True, timeout=5)
         if result.returncode == 0:
             print("OK - ADB已安装")
@@ -83,7 +83,8 @@ def main():
 
     try:
         from app import create_ui
-        demo = create_ui()
+        
+        demo, css, head = create_ui()
         
         print(f"访问地址: http://localhost:{target_port}")
         demo.launch(
@@ -92,7 +93,9 @@ def main():
             share=False,
             inbrowser=True,
             show_error=True,
-            quiet=False
+            quiet=False,
+            css=css,
+            head=head
         )
     except Exception as e:
         print(f"ERROR - 启动失败: {e}")
