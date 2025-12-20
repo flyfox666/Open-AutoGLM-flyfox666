@@ -11,6 +11,7 @@ from phone_agent.adb import get_current_app, get_screenshot
 from phone_agent.config import get_messages, get_system_prompt
 from phone_agent.model import ModelClient, ModelConfig
 from phone_agent.model.client import MessageBuilder
+from phone_agent.trajectory_logger import TrajectoryLogger, get_trajectory_logger
 
 
 @dataclass
@@ -80,6 +81,9 @@ class PhoneAgent:
 
         self._context: list[dict[str, Any]] = []
         self._step_count = 0
+        
+        # 轨迹日志记录器
+        self._trajectory_logger = get_trajectory_logger()
 
     def run(self, task: str) -> str:
         """
@@ -93,11 +97,18 @@ class PhoneAgent:
         """
         self._context = []
         self._step_count = 0
+        
+        # 开始新的 Session
+        self._trajectory_logger.start_session(
+            task=task,
+            model_name=self.model_config.model_name
+        )
 
         # First step with user prompt
         result = self._execute_step(task, is_first=True)
 
         if result.finished:
+            self._trajectory_logger.end_session(result.message or "Task completed")
             return result.message or "Task completed"
 
         # Continue until finished or max steps reached
@@ -105,8 +116,10 @@ class PhoneAgent:
             result = self._execute_step(is_first=False)
 
             if result.finished:
+                self._trajectory_logger.end_session(result.message or "Task completed")
                 return result.message or "Task completed"
 
+        self._trajectory_logger.end_session("Max steps reached")
         return "Max steps reached"
 
     def step(self, task: str | None = None) -> StepResult:
@@ -132,6 +145,7 @@ class PhoneAgent:
         """Reset the agent state for a new task."""
         self._context = []
         self._step_count = 0
+        self._trajectory_logger.end_session()
 
     def _execute_step(
         self, user_prompt: str | None = None, is_first: bool = False
@@ -232,6 +246,19 @@ class PhoneAgent:
                 f"{msgs['task_completed']}: {result.message or action.get('message', msgs['done'])}"
             )
             print("=" * 50 + "\n")
+
+        # 记录轨迹日志
+        action_type = action.get("_metadata", "unknown")
+        if action_type == "unknown":
+            # 尝试从 action 中提取类型
+            action_type = action.get("action", action.get("type", "unknown"))
+        
+        self._trajectory_logger.log_step(
+            screenshot_base64=screenshot.base64_data,
+            thinking=response.thinking,
+            action=action,
+            action_type=action_type
+        )
 
         return StepResult(
             success=result.success,
