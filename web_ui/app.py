@@ -639,6 +639,19 @@ def create_ui():
         }
         
         console.log('[AutoGLM] Lightbox v2 event listeners attached');
+        
+        // Ctrl+Enter 快捷键提交
+        document.addEventListener('keydown', function(e) {
+            if (e.ctrlKey && e.key === 'Enter') {
+                var inputBox = document.querySelector('#user-input-box textarea');
+                var submitBtn = document.querySelector('#submit-btn');
+                if (inputBox && submitBtn && document.activeElement === inputBox) {
+                    e.preventDefault();
+                    submitBtn.click();
+                    console.log('[AutoGLM] Ctrl+Enter triggered submit');
+                }
+            }
+        });
     })();
     </script>
     """
@@ -702,11 +715,12 @@ def create_ui():
                     )
                     user_input = gr.Textbox(
                         label="命令/回复",
-                        placeholder="输入任务指令 或 回复Agent询问...",
-                        lines=2
+                        placeholder="输入任务指令 或 回复Agent询问... (Ctrl+Enter 提交)",
+                        lines=2,
+                        elem_id="user-input-box"
                     )
                     with gr.Row():
-                        submit_btn = gr.Button("▶ 执行/回复", variant="primary", scale=2)
+                        submit_btn = gr.Button("▶ 执行/回复", variant="primary", scale=2, elem_id="submit-btn")
                         stop_btn = gr.Button("⏹ 停止", variant="stop", scale=1)
 
                 # 3. 参数配置 (保留原有的智谱AI/自定义配置)
