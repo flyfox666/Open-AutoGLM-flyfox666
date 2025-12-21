@@ -183,6 +183,7 @@ class PhoneAgent:
         """获取等待回复的问题。"""
         return self._pending_info
 
+
     def _execute_step(
         self, user_prompt: str | None = None, is_first: bool = False
     ) -> StepResult:
