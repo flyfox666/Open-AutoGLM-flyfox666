@@ -262,41 +262,32 @@ print(result)
 
 ## 🖥️ Web UI Features
 
-We provide a feature-rich modern Web interface that makes mobile automation operations more convenient:
+We provide a feature-rich modern Web interface that makes mobile automation operations more convenient. The interface features a two-column layout:
 
-### Interface Layout
+### Left Panel - Control
 
-**Modern Two-Column Layout, Control vs. Interaction:**
+| Module | Features |
+|--------|----------|
+| **📱 Device Management** | Check device status, view device list, restart ADB service |
+| **📶 Wireless Debugging** | Connect device via IP address, enable TCP/IP mode, disconnect |
+| **📊 Task Monitoring** | View task status (Ready/Running/Waiting for Input), select historical Sessions |
+| **💬 Command/Reply** | Enter task instructions or reply to Agent queries, supports `Ctrl+Enter` shortcut |
+| **⚙️ Model Configuration** | Zhipu AI and custom model settings, set Base URL and API Key |
+| **🛠 Utilities** | Launch scrcpy screen mirroring, get installed app list |
 
-- **Left Column - Smart Control Center**:
-  - **📱 Device Management**:
-    - **Status Overview**: Real-time display of USB/Wireless status
-    - **ADB Toolkit**: Built-in connection check, service restart, list devices
-    - **📶 Wireless Debugging**: Support IP connection and USB-to-Wireless mode
-  - **⚙️ Configuration**:
-    - Integrated Zhipu AI and custom model settings
-    - Quick switch for active device
-  - **🛠 Utilities**:
-    - **🖥️ Screen Mirroring**: One-click scrcpy launch
-    - **📲 App List**: Auto-scan third-party apps
+### Right Panel - Display
 
-- **Right Column - Interaction & Monitoring**:
-  - **📋 Real-time Terminal** (Top):
-    - Widescreen log display
-    - One-click copy and clear logs
-  - **🎯 Task Execution** (Bottom):
-    - **Natural Language Input**: Support complex multi-line commands
-    - **Task Status**: Real-time feedback on execution stage
-    - **💡 Quick Commands**: Built-in common operation examples
+| Module | Features |
+|--------|----------|
+| **📱 Task Trajectory** | Visual replay of each execution step, including screenshots, thought process, and action details; click to enlarge |
+| **📋 Real-time Logs** | Real-time display of task execution terminal output, with clear and copy buttons |
 
-### Core Features
-- **📶 Wireless Debugging Support** - Break free from USB cables, control devices via WiFi
-- **📱 Smart Device Management** - Automatically identify USB and wireless devices with clear connection status
-- **🔧 ADB Management Tools** - Built-in ADB device list viewer and service restart functions for quick troubleshooting
-- **🔄 One-Click Mode Switching** - USB devices can quickly convert to wireless debugging mode
-- **⚙️ Out-of-the-box Configuration** - Default expanded configuration panels reduce operation layers
-- **💬 Immersive Log Experience** - Terminal-grade log window with auto-scroll and one-click copy
-- **🛡️ Automatic Port Cleanup** - Automatically clear occupied ports on startup to ensure smooth service
+### Interaction Enhancements
+
+- **⌨️ Keyboard Shortcut**: `Ctrl+Enter` to quickly submit commands/replies
+- **🔄 Smart Auto-scroll**: Auto-scrolls during task execution; stops when task completes, allowing free navigation through history
+- **🖼️ Image Lightbox**: Click screenshots in trajectory to view full-size, with download support
+- **🛡️ Automatic Port Cleanup**: Automatically clear occupied ports on startup to ensure smooth service
 
 ## 📶 Wireless Debugging Feature
 
