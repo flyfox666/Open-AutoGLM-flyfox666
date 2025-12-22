@@ -30,7 +30,8 @@ https://github.com/user-attachments/assets/3d405b20-58de-499f-a969-72c6de410b71
 
 ### 方式一：Web 界面（推荐）
 
-<img width="1920" height="1127" alt="AutoGLM-Web-Controller-12-16-2025_12_35_AM" src="https://github.com/user-attachments/assets/4a5e81eb-c897-484a-96d6-2bd0e53976ab" />
+<img width="1920" height="1680" alt="Open-AutoGLM-12-22-2025_04_11_PM" src="https://github.com/user-attachments/assets/4dffa3c3-909d-4813-b726-f6cca5eb94d8" />
+
 
 
 我们提供了现代化的 Web 界面，让操作更加便捷（已集成 scrcpy 屏幕镜像启动功能）：
