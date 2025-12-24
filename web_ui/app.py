@@ -807,7 +807,7 @@ def create_ui():
             messages = logs_to_chatbot_messages(logs)
             return messages
         
-        session_dropdown.change(load_trajectory, inputs=[session_dropdown], outputs=[trajectory_output])
+        # session_dropdown.change 事件在下方统一处理，避免重复绑定
 
         # 列出应用
         list_apps_btn.click(get_available_apps, outputs=app_list_output)
@@ -946,60 +946,69 @@ def create_ui():
         # 实时轮询
         timer = gr.Timer(1.0)  # 1秒刷新一次
         
-        # 保存当前选中的session用于自动刷新轨迹
-        current_selected_session = gr.State(value=None)
-        # 保存上一次检测到的运行中session，用于判断是否启动了新任务
-        last_detected_session = gr.State(value=None)
+        # 追踪上一次的运行状态，用于判断任务是否从停止变为运行
+        was_running_state = gr.State(value=False)
+        # 追踪上一次检测到的运行中session
+        last_running_session = gr.State(value=None)
         
-        def poll_updates(selected_session, last_session):
+        def poll_updates(dropdown_value, was_running, last_session, user_switched):
+            """轮询更新日志、状态和轨迹"""
             logs = runner.get_logs()
             status = runner.get_status()
-            current_session = runner.get_current_session_id()
+            is_running = runner.is_running
+            current_running_session = runner.get_current_session_id()
             
-            # 获取可用sessions
+            # 获取可用sessions列表
             sessions = get_available_sessions()
-            if current_session and current_session not in sessions:
-                sessions = [current_session] + sessions
+            if current_running_session and current_running_session not in sessions:
+                sessions = [current_running_session] + sessions
             
-            # 判断是否启动了新任务（current_session 发生变化且不为空）
-            new_task_started = (current_session and current_session != last_session)
+            # 检测是否有新的session（基于session ID变化）
+            has_new_session = (
+                current_running_session and 
+                current_running_session != last_session
+            )
             
-            # 确定要显示的session：
-            # 1. 如果启动了新任务，自动切换到新的session
-            # 2. 否则，如果用户已手动选择了session，保持用户选择
-            # 3. 只有当用户未选择时(None)，才使用当前运行的session
-            if new_task_started:
-                display_session = current_session
-                new_selected = current_session  # 更新用户选择为新session
-            elif selected_session:
-                display_session = selected_session
-                new_selected = selected_session
+            # 更新状态
+            new_was_running = is_running
+            new_last_session = current_running_session if current_running_session else last_session
+            new_user_switched = user_switched
+            
+            # Dropdown 和 Trajectory 更新策略
+            if has_new_session:
+                # 检测到新session：切换到新session并加载轨迹
+                # 同时重置 user_switched 标志
+                dropdown_update = gr.update(choices=sessions, value=current_running_session)
+                traj_logs = load_session_logs(current_running_session)
+                trajectory_update = logs_to_chatbot_messages(traj_logs)
+                new_user_switched = False  # 新任务开始，重置用户切换标志
+            elif is_running and current_running_session and not user_switched:
+                # 任务运行中且用户没有手动切换：实时刷新当前运行session的轨迹
+                dropdown_update = gr.update(choices=sessions, value=current_running_session)
+                traj_logs = load_session_logs(current_running_session)
+                trajectory_update = logs_to_chatbot_messages(traj_logs)
             else:
-                display_session = current_session
-                new_selected = current_session
-            
-            # 自动加载轨迹
-            trajectory_messages = []
-            if display_session:
-                traj_logs = load_session_logs(display_session)
-                trajectory_messages = logs_to_chatbot_messages(traj_logs)
-            
-            # 更新 last_detected_session 为当前检测到的session
-            new_last_session = current_session if current_session else last_session
+                # 用户手动切换了session 或 任务未运行：只更新choices，保持轨迹不变
+                dropdown_update = gr.update(choices=sessions)
+                trajectory_update = gr.update()
             
             return (
                 logs, 
                 status, 
-                gr.Dropdown(choices=sessions, value=display_session),
-                trajectory_messages,
-                new_selected,
-                new_last_session
+                dropdown_update,
+                trajectory_update,
+                new_was_running,
+                new_last_session,
+                new_user_switched
             )
+        
+        # 追踪用户是否手动切换了session
+        user_switched_session = gr.State(value=False)
         
         timer.tick(
             fn=poll_updates,
-            inputs=[current_selected_session, last_detected_session],
-            outputs=[log_output, task_status, session_dropdown, trajectory_output, current_selected_session, last_detected_session],
+            inputs=[session_dropdown, was_running_state, last_running_session, user_switched_session],
+            outputs=[log_output, task_status, session_dropdown, trajectory_output, was_running_state, last_running_session, user_switched_session],
             js="""() => {
                 setTimeout(() => {
                     // 检测日志内容是否包含"任务结束"
@@ -1024,15 +1033,20 @@ def create_ui():
             }"""
         )
         
-        # 当用户手动选择session时更新state
+        # 当用户手动选择session时，加载对应的轨迹并标记用户已切换
         def on_session_select(session_id):
+            """用户手动选择session"""
             messages = load_trajectory(session_id)
-            return messages, session_id
+            # 只有当选择的session与当前运行的session不同时，才标记为用户切换
+            # 这样当程序自动切换到新session时，不会被误标记
+            current_running = runner.get_current_session_id()
+            user_switched = (session_id != current_running) if current_running else False
+            return messages, user_switched
         
         session_dropdown.change(
             on_session_select,
             inputs=[session_dropdown],
-            outputs=[trajectory_output, current_selected_session]
+            outputs=[trajectory_output, user_switched_session]
         )
 
     return demo, custom_css, lightbox_head
