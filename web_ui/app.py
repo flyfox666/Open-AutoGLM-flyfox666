@@ -487,6 +487,12 @@ def create_ui():
     .trajectory-chatbot .message {
         max-width: 100% !important;
     }
+    
+    /* 命令/回复文本框滚动条样式 */
+    #user-input-box textarea {
+        overflow-y: auto !important;
+        max-height: 120px !important;
+    }
     """
     
     # 灯箱脚本 - 使用head参数注入 (使用MutationObserver确保动态内容可点击)
@@ -716,7 +722,8 @@ def create_ui():
                     user_input = gr.Textbox(
                         label="命令/回复",
                         placeholder="输入任务指令 或 回复Agent询问... (Ctrl+Enter 提交)",
-                        lines=2,
+                        lines=3,
+                        max_lines=5,
                         elem_id="user-input-box"
                     )
                     with gr.Row():
