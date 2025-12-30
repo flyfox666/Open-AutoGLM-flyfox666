@@ -122,23 +122,50 @@ def check_system_requirements() -> bool:
         print("ERROR - System check failed. Please fix the issues above.")
         return False
 
-    # Check 3: ADB Keyboard installed
+    # Check 3: ADB Keyboard installed (with retry for unstable network)
     print("3. Checking ADB Keyboard...", end=" ")
-    try:
-        result = subprocess.run(
-            ["adb", "shell", "ime", "list", "-s"],
-            capture_output=True,
-            text=True,
-            encoding='utf-8',
-            errors='ignore',
-            timeout=10,
-        )
-        ime_list = result.stdout.strip()
+    max_retries = 3
+    retry_delay = 2  # seconds
+    adb_keyboard_found = False
+    last_error = None
+    
+    for attempt in range(max_retries):
+        try:
+            result = subprocess.run(
+                ["adb", "shell", "ime", "list", "-s"],
+                capture_output=True,
+                text=True,
+                encoding='utf-8',
+                errors='ignore',
+                timeout=15,  # Increased timeout for unstable networks
+            )
+            ime_list = result.stdout.strip()
 
-        if "com.android.adbkeyboard/.AdbIME" in ime_list:
-            print("OK - OK")
-        else:
-            print("ERROR - FAILED")
+            if "com.android.adbkeyboard/.AdbIME" in ime_list:
+                adb_keyboard_found = True
+                break
+            else:
+                # ADB Keyboard not found in the list - this is a real failure, not network issue
+                last_error = "not_installed"
+                break
+        except subprocess.TimeoutExpired:
+            last_error = "timeout"
+            if attempt < max_retries - 1:
+                print(f"RETRY ({attempt + 1}/{max_retries})...", end=" ")
+                import time
+                time.sleep(retry_delay)
+        except Exception as e:
+            last_error = str(e)
+            if attempt < max_retries - 1:
+                print(f"RETRY ({attempt + 1}/{max_retries})...", end=" ")
+                import time
+                time.sleep(retry_delay)
+    
+    if adb_keyboard_found:
+        print("OK - OK")
+    else:
+        print("ERROR - FAILED")
+        if last_error == "not_installed":
             print("   Error: ADB Keyboard is not installed on the device.")
             print("   Solution:")
             print("     1. Download ADB Keyboard APK from:")
@@ -149,14 +176,11 @@ def check_system_requirements() -> bool:
             print(
                 "     3. Enable it in Settings > System > Languages & Input > Virtual Keyboard"
             )
-            all_passed = False
-    except subprocess.TimeoutExpired:
-        print("ERROR - FAILED")
-        print("   Error: ADB command timed out.")
-        all_passed = False
-    except Exception as e:
-        print("ERROR - FAILED")
-        print(f"   Error: {e}")
+        elif last_error == "timeout":
+            print("   Error: ADB command timed out after multiple retries.")
+            print("   Solution: Check your network connection stability.")
+        else:
+            print(f"   Error: {last_error}")
         all_passed = False
 
     print("-" * 50)
