@@ -521,3 +521,8 @@ python main.py --base-url https://open.bigmodel.cn/api/paas/v4 --model "autoglm-
 ---
 
 **部署完成的标志：手机能自动执行用户的自然语言指令。**
+
+
+## Star History
+
+[![Star History Chart](https://api.star-history.com/svg?repos=flyfox666/Open-AutoGLM-webui-flyfox666&type=date&legend=top-left)](https://www.star-history.com/#flyfox666/Open-AutoGLM-webui-flyfox666&type=date&legend=top-left)
